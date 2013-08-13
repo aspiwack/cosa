@@ -114,4 +114,5 @@ Cosa runs atop Compcert 2.0. As far as we know, there is no installing rules for
 
 * open a terminal in Compcert's source directory
 * run `make proof` to build the proofs (this is pretty long, but it can run in parallel using `make`'s `-j` option).
-* run `mkdir -p "$(coqtop -where)/user-contrib/compcert" && cp --parents $(find . -name "*.vo") "$(coqtop -where)/user-contrib/compcert"` you probably need to run it as superuser.
+* run `mkdir -p "$(coqtop -where)/user-contrib/compcert"` you probably need to run it as superuser.
+* run `cp --parents $(find . -name "*.vo") "$(coqtop -where)/user-contrib/compcert"` you probably need to run it as superuser.
