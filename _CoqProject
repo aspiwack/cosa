@@ -1,0 +1,26 @@
+-R . Cosa
+./Lib/Bracket.v
+./Lib/Finite.v
+./Lib/CompleteLattice.v
+./Lib/Header.v
+./Lib/Predicate.v
+./Lib/Relation.v
+./Lib/Axioms.v
+./Lib/.#Tactics.v
+./Lib/Tactics.v
+./Lib/Algebra.v
+./Lib/MapReduce.v
+./Lib/Extra.v
+./Abstract/Lang.v
+./Abstract/NumericalDomain.v
+./Analysis/Inductives.v
+./Concrete/ConcreteFragment.v
+./Shape/Summary.v
+./Shape/Inclusion.v
+./Shape/Graph.v
+./Shape/ShapeDomain.v
+./Interaction/Simulation.v
+./Interaction/Transition.v
+./Interaction/Rule.v
+./Interaction/InteractionLib.v
+./Interaction/Interaction.v
