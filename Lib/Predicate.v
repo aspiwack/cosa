@@ -7,6 +7,7 @@ Import List.ListNotations.
 
 Reserved Notation "P1 ⊆ P2" (at level 20).
 Notation "x ∈ P" := (P x) (at level 19, only parsing).
+Notation "x ∉ P" := (~x∈P) (at level 19, only parsing).
 Notation "'℘' A" := (A -> Prop) (at level 0).
 Reserved Notation "X ∩ Y" (at level 19).
 Reserved Notation "X ∪ Y" (at level 19).

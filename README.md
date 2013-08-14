@@ -86,6 +86,7 @@ The `Concrete` directory contains objects involved in the description of the con
 
 The `Abstract` directory contains objects involved in the description of the abstract domain but which are not part of the Xisa domain _per se_.
 
+* `Valuation.v` gives helpers to manipulate valuations (functions relating graph nodes to concrete values). In particular, it defines the symmetry property which will be use to prove the correctness of picking fresh names arbitrarily.
 * `Lang.v` describes the expressions used by the analysis. `Lang.expr` is essentially the expressions from Compcert's Cminor, except that `Lang.expr` is parametrised by the type of its variables.
 * `NumericalDomain.v` defines an abstract type of numerical domain which will be used as an argument for the shape analysis. The type is meant to resemble that of Verasco's value analysis, except that it uses `Lang.expr` as expression whereas Verasco's value analysis has its own brand of expression, which doesn't have a _load_ (pointer dereferencing) expression. In `NumericalDomain.v` the load expression is essentially interpreted as top, though.
 

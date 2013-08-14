@@ -3,6 +3,8 @@ Require Import Cosa.Lib.Relation.
 Require Import Cosa.Lib.Predicate.
 Require Import Cosa.Lib.MapReduce.
 Require Import Cosa.Concrete.ConcreteFragment.
+Require Import Cosa.Abstract.Valuation.
+Import Coq.Classes.EquivDec.
 Import Values.
 Import List.ListNotations.
 Require Import Coq.Lists.SetoidPermutation.
@@ -307,28 +309,41 @@ Section Graph.
     fun δ => δ = α \/ δ = β
   .
 
-  Lemma valuation_not_fixed_point_to α o chunk β o' :
-    forall ν f, (ν,f) ∈ γ_point_to α o chunk β o' ->
-    forall ν', (forall δ, δ ∈ belongs_to_point_to α o chunk β o' -> ν' δ = ν δ) ->
-    (ν',f) ∈ γ_point_to α o chunk β o'.
+  Lemma valuation_not_fixed_point_to α o chunk β o' f:
+    central (belongs_to_point_to α o chunk β o')
+            (fun ν => (ν,f) ∈ γ_point_to α o chunk β o').
   Proof.
-    intros * h * h₁.
+    unfold central. intros δ γ hδ hγ ν h₁.
     unfold belongs_to_point_to in *.
-    destruct h; simpl in *.
+    destruct h₁; simpl in *.
     + eleft; eauto; simpl.
-      * rewrite h₁.
-        - assumption.
-        - now left.
-      * rewrite h₁.
-        - assumption.
-        - now right.
+      * unfold swap.
+        destruct (α == δ) as [ <- | _ ].
+        { clear -hδ; firstorder. }
+        destruct (α == γ) as [ <- | _ ].
+        { clear -hγ; firstorder. }
+        easy.
+      * unfold swap.
+        destruct (β == δ) as [ <- | _ ].
+        { clear -hδ; firstorder. }
+        destruct (β == γ) as [ <- | _ ].
+        { clear -hγ; firstorder. }
+        easy.
     + eright; eauto; simpl.
-      * rewrite h₁.
-        - assumption.
-        - now left.
-      * rewrite h₁.
-        - assumption.
-        - now right.
+      * unfold swap.
+        destruct (α == δ) as [ <- | _ ].
+        { clear -hδ; firstorder. }
+        destruct (α == γ) as [ <- | _ ].
+        { clear -hγ; firstorder. }
+        easy.
+      * replace (swap δ γ ν β) with (ν β).
+        { easy. }
+        unfold swap.
+        destruct (β == δ) as [ <- | _ ].
+        { clear -hδ; firstorder. }
+        destruct (β == γ) as [ <- | _ ].
+        { clear -hγ; firstorder. }
+        easy.
   Qed.
 
   Definition belongs_to_block α b : ℘ node :=
@@ -343,44 +358,59 @@ Section Graph.
                 )
   .
 
-  Lemma valuation_not_fixed_block α b :
-    forall ν f, (ν,f) ∈ γ_block α b ->
-    forall ν', (forall δ, δ ∈ belongs_to_block α b -> ν' δ = ν δ) ->
-    (ν',f) ∈ γ_block α b.
+  Lemma valuation_not_fixed_block α b f :
+    central (belongs_to_block α b)
+            (fun ν => (ν,f) ∈ γ_block α b).
   Proof.
-    intros * h * h₁.
-    revert f h h₁.
-    induction b as [ | p b hb ]; intros f h h₁.
+    unfold central. intros β δ hβ hδ ν. revert f.
+    induction b as [ | p b hb ]; intros f h₁.
     - (* b = [] *)
       unfold γ_block in *; simpl in *.
       unfold empty in *; simpl in *.
       assumption.
     - (* b = p::b *)
-      unfold γ_block in h |- *.
+      unfold γ_block in h₁ |- *.
       rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
-      rewrite list_map_cons,(list_reduce_cons eq) in h; [ | typeclasses eauto .. ].
-      destruct h as [ [ ν₁ f₁ ] [ [ ν₂ f₂ ] [ h₂ [ h₃ [ h₄ h₅ ]]]]]; simpl in h₄,h₅.
+      rewrite list_map_cons,(list_reduce_cons eq) in h₁; [ | typeclasses eauto .. ].
+      destruct h₁ as [ [ ν₁ f₁ ] [ [ ν₂ f₂ ] [ h₂ [ h₃ [ h₄ h₅ ]]]]]; simpl in h₄,h₅.
       destruct h₄.
-      exists (ν',f₁); exists (ν',f₂).
-      decompose_goal.
-      + apply valuation_not_fixed_point_to with ν₁.
-        * assumption.
-        * intros δ hδ.
-          apply h₁.
-          unfold belongs_to_block;right.
-          rewrite list_map_cons,(list_reduce_cons eq); [| typeclasses eauto..].
+      exists (swap β δ ν₁,f₁); exists (swap β δ ν₁,f₂).
+      decompose_concl.
+      + apply valuation_not_fixed_point_to.
+        * clear -hβ; unfold belongs_to_block in hβ.
+          intros h.
+          apply hβ.
+          right.
+          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
           now left.
+        * clear -hδ; unfold belongs_to_block in hδ.
+          intros h.
+          apply hδ.
+          right.
+          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
+          now left.
+        * assumption.
       + apply hb.
-        * assumption.
-        * intros δ hδ.
-          apply h₁.
-          unfold belongs_to_block.
-          destruct hδ; [ now left | right ].
-          rewrite list_map_cons,(list_reduce_cons eq); [| typeclasses eauto..].
+        * clear -hβ; unfold belongs_to_block in hβ.
+          intros h.
+          apply hβ.
+          destruct h.
+          { now left. }
+          right.
+          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
           now right.
+        * clear -hδ; unfold belongs_to_block in hδ.
+          intros h.
+          apply hδ.
+          destruct h.
+          { now left. }
+          right.
+          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
+          now right.
+        * apply h₃.
       + split; simpl.
-        * constructor.
-        * assumption.
+        { constructor. }
+        assumption.
   Qed.
 
   (** spiwack: in a more general setting, summaries should control
@@ -390,10 +420,9 @@ Section Graph.
     fun δ => δ = α
   .
 
-  Hypothesis valuation_not_fixed_summary : forall α sm,
-    forall ν f, (ν,f) ∈ γ_summary sm α ->
-    forall ν', (forall δ, δ ∈ belongs_to_summary α sm -> ν' δ = ν δ) ->
-    (ν',f) ∈ γ_summary sm α.
+  Hypothesis valuation_not_fixed_summary : forall α sm f,
+    central (belongs_to_summary α sm)
+            (fun ν => (ν,f) ∈ γ_summary sm α).
 
   Definition belongs_to_edge α e : ℘ node :=
     match e with
@@ -401,21 +430,20 @@ Section Graph.
     | Summarized sm => belongs_to_summary α sm
     end
   .
-
-  Lemma valuation_not_fixed_edge α e :
-    forall ν f, (ν,f) ∈ γ_edge α e ->
-    forall ν', (forall δ, δ ∈ belongs_to_edge α e -> ν' δ = ν δ) ->
-    (ν',f) ∈ γ_edge α e.
+  
+  Lemma valuation_not_fixed_edge α e f :
+    central (belongs_to_edge α e)
+            (fun ν => (ν,f) ∈ γ_edge α e).
   Proof.
-    intros * h * h₁.
+    unfold central. intros β δ hβ hδ ν h₁.
     unfold γ_edge.
     destruct e as [ b | sm ].
     + (* e = Point_to b *)
-      simpl in h,h₁.
-      apply valuation_not_fixed_block with ν; eauto.
+      simpl in h₁.
+      apply valuation_not_fixed_block; eauto.
     + (* e = Summarized sm *)
-      simpl in h,h₁.
-      apply valuation_not_fixed_summary with ν; eauto.
+      simpl in h₁.
+      apply valuation_not_fixed_summary; eauto.
   Qed.
 
   Definition belongs_to_graph (g:t) : ℘ node :=
@@ -439,54 +467,91 @@ Section Graph.
     now rewrite h₁.
   Qed.
 
-  Theorem valuation_not_fixed (g:t) :
-    forall ν f, (ν,f) ∈ γ g ->
-    forall ν', (forall β, β ∈ belongs_to_graph g -> ν' β = ν β) ->
-    (ν',f) ∈ γ g.
+  Lemma belongs_to_graph_remove (g:t) α :
+    forall β,  β ∈ belongs_to_graph (NodeTree.remove α g) -> β ∈ belongs_to_graph g.
   Proof.
-    unfold γ at 2; unfold ptree_map_reduce.
+    intros *.
+    destruct (g!α) as [ e | ] eqn:h₁.
+    + (* g!α = Some e *)
+      set (g' := NodeTree.remove α g).
+      assert (equiv g (NodeTree.set α e g')) as h₂.
+      { apply equiv_alt; intros δ.
+        unfold g'; clear g'.
+        ptree_simplify; congruence. }
+      intros h₃.
+      erewrite belongs_to_graph_equiv'; [|eauto..].
+      unfold belongs_to_graph in *.
+      rewrite ptree_set_map_reduce; [|typeclasses eauto..|].
+      * now right.
+      * unfold g' in *; clear g'.
+        ptree_simplify; congruence.
+    + (* g!α = None *)
+      rewrite belongs_to_graph_equiv'; eauto.
+      apply equiv_alt; intros δ.
+      ptree_simplify; congruence.
+  Qed.
+
+  Theorem valuation_not_fixed (g:t) f :
+    central (belongs_to_graph g)
+            (fun ν => (ν,f) ∈ γ g).
+  Proof.
+    revert f; unfold γ; unfold ptree_map_reduce.
     apply PTree_Properties.fold_rec.
-    { intros g₁ g₂ P g₁_g₂ h₂ ν f h₃ ν' h₄.
+    { intros g₁ g₂ P g₁_g₂ h₂ f α β h₃ h₄ ν' h₅.
       apply equiv_alt in g₁_g₂.
       eapply h₂; clear h₂.
-      + apply γ_equiv in g₁_g₂; rewrite g₁_g₂.
-        exact h₃.
-      + intros β e.
-        apply belongs_to_graph_equiv in g₁_g₂; rewrite g₁_g₂ in e.
-        eauto. }
-    { intros ν f h ν' h₁.
+      + intros h; apply h₃.
+        now apply belongs_to_graph_equiv in g₁_g₂; rewrite <- g₁_g₂.
+      + intros h; apply h₄.
+        now apply belongs_to_graph_equiv in g₁_g₂; rewrite <- g₁_g₂.
+      + assumption. }
+    { intros f α β hα hβ ν h.
       unfold empty; simpl.
-      rewrite γ_empty in h; unfold empty in h; simpl in h.
+      unfold empty in h; simpl in h.
       assumption. }
-    intros g' P α e h₁ h₂ h ν f h₃ ν' h₄.
-    rewrite (single_out_one_edge _ α e) in h₃; [ | ptree_simplify;congruence ].
-    assert (γ (NodeTree.remove α (NodeTree.set α e g')) = γ g') as r; [|rewrite r in *;clear r].
-    { apply γ_equiv.
-      unfold equiv,PTree_Properties.Equal. intros β.
-      ptree_simplify.
-      - now rewrite h₁.
-      - now destruct (g'!β). }
-    unfold estar,extension2 in h₃.
+    intros g' P α e h₁ h₂ h f β δ hβ hδ ν h₃.
     destruct h₃ as [ [ ν₁ f₁ ] [ [ ν₂ f₂ ] [ h₃₁ [ h₃₂ [ h₃₃ h₃₄ ]]]]]; simpl in h₃₃,h₃₄.
     destruct h₃₃.
-    unfold estar,extension2.
-    exists (ν',f₁); exists (ν',f₂).
+    exists (swap β δ ν₁,f₁); exists (swap β δ ν₁,f₂).
     decompose_concl.
-    + eapply h; eauto.
-      intros β h₅.
-      apply h₄.
-      unfold belongs_to_graph.
-      rewrite ptree_set_map_reduce; [|typeclasses eauto..|assumption].
-      now right.
-    + apply valuation_not_fixed_edge with ν₁;eauto.
-      intros β h₅.
-      apply h₄.
-      unfold belongs_to_graph.
-      rewrite ptree_set_map_reduce; [|typeclasses eauto..|assumption].
-      now left.
-    + split; simpl.
+    + apply h.
+      * clear -h₁ hβ.
+        intros h; apply hβ.
+        unfold belongs_to_graph.
+        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
+        now right.
+      * clear -h₁ hδ.
+        intros h; apply hδ.
+        unfold belongs_to_graph.
+        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
+        now right.
+      * assumption.
+    + apply valuation_not_fixed_edge.
+      * clear -h₁ hβ.
+        intros h; apply hβ.
+        unfold belongs_to_graph.
+        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
+        now left.
+      * clear -h₁ hδ.
+        intros h; apply hδ.
+        unfold belongs_to_graph.
+        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
+        now left.
+      * assumption.
+    + constructor; simpl.
       * constructor.
       * assumption.
+  Qed.
+
+  Corollary valuation_not_fixed_iter (g:t) :
+    forall (p:permutation), permutation_not_in p (belongs_to_graph g) ->
+    forall ν f, (ν,f) ∈ γ g -> (p@ν,f) ∈ γ g.
+  Proof.
+    intros **.
+    apply central_permutation with (belongs_to_graph g).
+    + apply valuation_not_fixed.
+    + assumption.
+    + assumption.
   Qed.
 
   Lemma domain_belongs g :

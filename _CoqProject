@@ -13,6 +13,7 @@
 ./Lib/Extra.v
 ./Abstract/Lang.v
 ./Abstract/NumericalDomain.v
+./Abstract/Valuation.v
 ./Analysis/Inductives.v
 ./Concrete/ConcreteFragment.v
 ./Shape/Summary.v

@@ -9,6 +9,8 @@ Require Import Cosa.Interaction.Transition.
 Require Import Cosa.Interaction.Interaction.
 Require Import Cosa.Interaction.Simulation.
 Require Import Cosa.Interaction.InteractionLib.
+Require Import Cosa.Abstract.Valuation.
+Import Coq.Classes.EquivDec.
 
 (** Definition of inductive summaries for graphs. *)
 
@@ -111,7 +113,7 @@ Coercion names_of : def >-> Sortclass.
 (** The concretisation function for a set of inductive definition is
     the least fixed point of [F_γ]. *)
 Definition F_γ (d:def) (γr : rel [names_of d;node;Graph.conc]) :
-  rel [projT1 d;node;Graph.conc] :=
+  rel [names_of d;node;Graph.conc] :=
   fun i => γ_unfolding γr (projT2 d i)
 .
 
@@ -128,7 +130,13 @@ Qed.
 
 Definition γ (d:def) : d -> node -> ℘ Graph.conc :=
   lfp (F_γ d)
-. 
+.
+
+Remark γ_fixed_point d : F_γ d (γ d) = γ d.
+Proof.
+  apply lfp_fixed_point.
+  typeclasses eauto.
+Qed.
 
 (** An unfolding is correct when applying the unfolding yields an over
     approximation of the summary *)
@@ -175,20 +183,20 @@ Definition apply_unfolding {d:def} (u:unfolding d)(α:node) :
 (* arnaud: en fait il faut restreindre, dans tout ce fichier, les [℘ node] à être
    fini, sinon on n'a pas de garanti de pouvoir choisir les noms comme on veut. *)
 Definition symmetric_unfolding {d:def} (u:unfolding d) : Prop :=
-  forall (α:node) (P:℘ node) (c:(u α).(Com) P) (r:(u α).(Resp) c) ν f,
-  (ν,f) ∈ γ_rule (γ d) ((u α).(Output) r) ->
-  forall P':℘ node, forall (c':(u α).(Com) P'), exists (r':(u α).(Resp) c') ν',
-    ( forall β, β∈P' -> ν' β = ν β ) /\
-    ( (ν',f) ∈ γ_rule (γ d) ((u α).(Output) r') )
+  forall (α:node) (P:℘ node) (c:(u α).(Com) P) (r:(u α).(Resp) c),
+  forall P':℘ node, forall (c':(u α).(Com) P'), exists (r':(u α).(Resp) c') (sw:permutation),
+    (permutation_not_in sw P') /\
+    (forall ν f,
+     (ν,f) ∈ γ_rule (γ d) ((u α).(Output) r) ->
+     (sw@ν,f) ∈ γ_rule (γ d) ((u α).(Output) r'))
 .
 
 (** All the definitions [i] in [d] must have the property that they
     only fix in [ν] those node that belong to them. *)
 Definition valuation_not_fixed_def (d:def) :=
-  forall (i:d) α, 
-  forall ν f, (ν,f) ∈ γ d i α ->
-  forall ν', (forall δ, δ ∈ belongs_to_summary α i -> ν' δ = ν δ) ->
-  (ν',f) ∈ γ d i α.
+  forall (i:d) α f,
+  central (belongs_to_summary α i)
+          (fun ν => (ν,f) ∈ γ d i α).
 
 
 (** Applying an unfolding is always correct. *)
@@ -221,34 +229,31 @@ Proof.
   specialize (h₂ _ _ h₅).
   destruct h₂ as [ P [ βs [ r h₂ ]]].
   destruct s₂ as [ ν₂ f₂ ].
-  apply sym_u in h₂.
-  specialize (h₂ (belongs_to_graph s)).
-  specialize (h₂ c₁).
-  destruct h₂ as [ r₁ [ ν₂' [ h₂₁ h₂₂ ]]].
+  specialize (sym_u α P βs r).
+  specialize (sym_u (belongs_to_graph s) c₁).
+  destruct sym_u as [ r₁ [ sw [sym_u₁ sym_u₂]]].
+  apply sym_u₂ in h₂.
   exists (tt,r₁).
   unfold RT; simpl.
   intros []; exists tt; intros []; exists tt.
-  exists ν₂'.
+  exists (sw@ν₂).
   (** Proving the final condition. *)
   unfold apply_rule; simpl.
-  destruct h₂₂ as [ h₂₂ h₂₃ ]; simpl in h₂₂,h₂₃.
+  destruct h₂ as [ h₂₁ h₂₂ ]; simpl in h₂₁,h₂₂.
   split; simpl.
   - rewrite γ_disjoint_union.
     + unfold estar, Relation.extension2.
       destruct s₁ as [ ν₁ f₁ ].
-      exists (ν₂',f₁).
-      exists (ν₂',f₂).
+      exists (sw@ν₂,f₁).
+      exists (sw@ν₂,f₂).
       decompose_concl.
       * destruct h₆ as [ h₆ _ ]; simpl in h₆; destruct h₆.
-        { apply valuation_not_fixed with ν₁.
+        { apply valuation_not_fixed_iter.
           - eauto.
-          - eauto.
-          - intros β h₆.
-            apply h₂₁.
-            unfold belongs_to_graph.
-            rewrite (ptree_remove_map_reduce _ _ _ α (Summarized i));
-               [|typeclasses eauto..|assumption].
-            now right. }
+          - revert sym_u₁.
+            apply permutation_not_in_decreasing.
+            simpl; apply belongs_to_graph_remove.
+          - assumption. }
       * assumption.
       * destruct h₆ as [ _ h₆ ]; simpl in h₆.
         now constructor.
@@ -302,7 +307,7 @@ Proof.
   apply (Join_intro P), (Join_intro βs). refine (Join_intro r _). (* arnaud:bug de apply?*)
   reflexivity.
 Qed.
-  
+
 
 Record env := {
   defs :> def ;
