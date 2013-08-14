@@ -81,40 +81,7 @@ Definition check_pure_expr {var} env e b :=
 
 Definition valid_pure_expr {var} env e b :=
   check_pure_expr (var:=var) env e b /\ ~(check_pure_expr env e (negb b))
-.
-
-(* arnaud: je vais sans doute utiliser les expressions comme des boîtes noir,
-   et utiliser une conjonction explicite dans Inclusion.v
-Lemma check_pure_expr_true_true {var} env :
-  check_pure_expr (var:=var) env (Aconst (Cminor.Ointconst Int.one)) true.
-Proof.
-  compute.
-  econstructor.
-  simpl.
-  reflexivity.
-  Grab Existential Variables.
-  - exact (Globalenvs.Genv.empty_genv _ _).
-  - exact Values.Vfalse.
-Qed.
-
-Lemma and_inversion : forall v₁ v₂ m,
-  Cminor.eval_binop Cminor.Oand v₁ v₂ m = Some (Values.Vtrue) ->
-  v₁ 
-
-Lemma check_pure_expr_true_and {var} (env:var->_) e₁ e₂:
-  check_pure_expr env e₁ true /\
-  check_pure_expr env e₂ true <->
-  check_pure_expr env (Abinop Cminor.Oand e₁ e₂) true.
-Proof.
-  split.
-  - intros [ h₁ h₂ ].
-    compute in h₁,h₂ |- *.
-    econstructor; eauto.
-  - intros h₁; compute in h₁|-*.
-    inversion h₁; subst; clear h₁.
-    unfold Cminor.eval_binop in * |-.
-*)
-    
+.   
 
 (** Substitution. *)
 Fixpoint subs {A B} (φ:A->B) (e:expr A) : expr B :=
