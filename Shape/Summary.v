@@ -54,11 +54,12 @@ Section Inductives.
 
   (** Given a concretisation of for [indname], computes a
       concretisation for an [unfolding] at node [α]. *)
+  Definition γ_unfolding_with (P:℘ node) (u:unfolding) (α:node) : ℘ Graph.conc :=
+    Join (fun ν:(u α).(Com) P =>
+            Join (Γ:=[conc]) (fun r:(u α).(Resp) ν => γ_rule ((u α).(Output) r)))
+  .
   Definition γ_unfolding (u:unfolding) (α:node) : ℘ Graph.conc :=
-    Join (fun P =>
-            Join (fun ν:(u α).(Com) P =>
-                    Join (Γ:=[conc]) (fun r:(u α).(Resp) ν => γ_rule ((u α).(Output) r)))
-         )
+    Join (Γ:=[_]) (fun P => γ_unfolding_with P u α)
   .
 
   Definition avoiding_unfolding (u:unfolding) : Prop :=
@@ -96,7 +97,7 @@ Instance γ_unfolding_increasing n :
 Proof.
   unfold Proper, respectful.
   intros γ₁ γ₂  γ₁_sub_γ₂ i ? <- α ? <-.
-  unfold γ_unfolding.
+  unfold γ_unfolding,γ_unfolding_with.
   apply Join_increasing;rewrite sub_cons; intros P.
   apply Join_increasing;rewrite sub_cons; intros ν.
   apply Join_increasing;rewrite sub_cons; intros r.
@@ -303,7 +304,7 @@ Proof.
   change (lfp (F_γ d)) with (γ d).
   unfold F_γ.
   (* /unwinding *)
-  unfold γ_unfolding.
+  unfold γ_unfolding,γ_unfolding_with.
   apply (Join_intro P), (Join_intro βs). refine (Join_intro r _). (* arnaud:bug de apply?*)
   reflexivity.
 Qed.

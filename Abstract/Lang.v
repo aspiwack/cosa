@@ -1,4 +1,6 @@
 Require Import Cosa.Lib.Header.
+Require Import Cosa.Abstract.Valuation.
+Require Import Coq.Classes.EquivDec.
 Require Cminor.
 
 (** An abstract notion of expression. The type [expr] is a variant of
@@ -108,3 +110,66 @@ Fixpoint collect {F} (a:Applicative F) {A} (e:expr (F A)) : F (expr A) :=
 Definition rename {A B} (φ:A->option B) (e:expr A) : option (expr B) :=
   collect Option (subs φ e)
 .
+
+(* arnaud: belongs_to_expr can actually be defined in term of [collect], using
+   the writer applicative and a list. *)
+Fixpoint belongs_to_expr {A} (e:expr A) (x:A) : Prop :=
+  match e with
+  | Avar v => x=v
+  | Aconst _ => False
+  | Aunop _ e => belongs_to_expr e x
+  | Abinop _ e₁ e₂ => belongs_to_expr e₁ x \/ belongs_to_expr e₂ x
+  | Aload _ e => belongs_to_expr e x
+  end
+.
+
+Lemma value_not_fixed_eval_pure_expr A {_:EqDec A eq} (e:expr A) v :
+  central (belongs_to_expr e)
+          (fun ρ => eval_pure_expr ρ e v).
+Proof.
+  unfold central; revert v.
+  induction e as [ x | c | op e he | op e₁ he₁ e₂ he₂ | chunk e he ]; simpl.
+  - intros ** ν h.
+    inversion h; subst; clear h.
+    assert (ν x = swap α β ν x) as ->.
+    { unfold swap.
+      rewrite !if_eq_neq; congruence. }
+    constructor.
+  - intros ** h.
+    inversion h; subst; clear h.
+    econstructor; eauto.
+  - intros ** h.
+    inversion h; subst; clear h.
+    econstructor; eauto.
+    now apply he.
+  - intros v α β hα hβ ** h.
+    inversion h; subst; clear h.
+    econstructor; eauto; [apply he₁|apply he₂]; solve[easy|clear -hα hβ; firstorder].
+  - intros ** h.
+    inversion h; subst; clear h.
+    econstructor; eauto.
+    eapply he; eauto.
+Qed.
+
+Lemma value_not_fixed_check_pure_expr A {_:EqDec A eq} (e:expr A) b :
+  central (belongs_to_expr e)
+          (fun ρ => check_pure_expr ρ e b).
+Proof.
+  apply value_not_fixed_eval_pure_expr.
+Qed.
+
+Lemma value_not_fixed_valid_pure_expr A {_:EqDec A eq} (e:expr A) b :
+  central (belongs_to_expr e)
+          (fun ρ => valid_pure_expr ρ e b).
+Proof.
+  unfold central, valid_pure_expr.
+  intros ** [h₁ h₂].
+  split.
+  - apply value_not_fixed_check_pure_expr; eauto.
+  - intros h₃; apply h₂.
+    assert (ν = swap α β (swap α β ν)) as h₄.
+    { extensionality x.
+      now rewrite swap_idempotent. }
+    rewrite h₄.
+    apply value_not_fixed_check_pure_expr; eauto.
+Qed.

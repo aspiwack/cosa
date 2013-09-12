@@ -18,13 +18,20 @@ Section Valuation.
     end
   .
 
-  (* arnaud: bouger vers Extra ? *)
+  (* arnaud: bouger vers Extra ? *)
   Lemma if_eq_refl C : forall (x:A) (e₁ e₂:C), (if x==x then e₁ else e₂) = e₁.
   Proof.
     intros *.
     destruct (x==x) as [ _ | neq_x_x ].
     { easy. }
     congruence.
+  Qed.
+
+  (* arnaud: bouger aussi ? *)
+  Lemma if_eq_neq C : forall (x y:A) (e₁ e₂:C), x<>y -> (if x==y then e₁ else e₂) = e₂.
+  Proof.
+    intros * h.
+    destruct (x==y); congruence.
   Qed.
 
 
