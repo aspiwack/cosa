@@ -96,7 +96,7 @@ The `Shape` directory contains the heart of Cosa's domain, where most correction
 
 * `Graph.v` describes the graphs which holds the pure shape part of the analysis. Graphs have point-to edges, which represent a single pointer in the concretisation, and summarised edges, which represent regions. Summaries are purely abstract as far as this file is concerned.
 * `Summary.v` is arguably the most central file of Cosa: it describes summarised edges, and in particular, how they are unfolded. In this file, a summary is described by a process (an interaction structure) which takes a set of existing nodes as an input and outputs a pair of a graph and a `Lang.expr`. The idea is that inductive summaries will be given as in Xisa as a list (a finite product) of rules each of which creates some new nodes and yields a pure shape part and a pure numerical part. But in `Summary.v` these details are not touched upon. Given a set of summaries defined each by a (single) process, we can define the concretisation of summaries as a least fixed point (of complete lattice). We can then provide additional unfolding processes for each summary (such as backwards unfolding of segments). Given sufficient properties we show that unfolding a summary is always correct. The intention is that any summary derived from Xisa's schema will verify these assumptions, but at the time there is no generic schema in Cosa, inductive (as well as segments) are hand-coded.
-* `ShapeDomain.v` combines graphs and numerical analysis and environment
+* `ShapeDomainSig.v` gives the type and concretisation for combined domains: graphs with numerical analysis, then with an environment for program variables.
 * `Inclusion.v` rules for inclusion checking. _work in progress._
 
 ### Analysis ###
