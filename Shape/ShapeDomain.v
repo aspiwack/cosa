@@ -31,6 +31,8 @@ Definition γ (a:t) : ℘ (Graph.conc) :=
 
 End NumGraph.
 
+Arguments γ {num_dom} {ind_env} a _.
+
 End NumGraph.
 
 
@@ -55,5 +57,12 @@ Variable ind_env : Summary.env.
 
 Definition t := (aenv*NumGraph.t num_dom ind_env)%type.
 
+Definition γ (a:t) : ℘ ( cenv * ConcreteFragment.fragment ) :=
+  fun eh => exists ν, (ν,snd eh) ∈ NumGraph.γ (snd a) /\
+                      forall x, (fst eh) ! x = match (fst a) ! x with
+                                              | Some α => Some (ν α)
+                                              | None => None
+                                              end
+.
 
 End ShapeDomain.
