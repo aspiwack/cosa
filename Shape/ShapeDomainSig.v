@@ -66,3 +66,5 @@ Definition γ (a:t) : ℘ ( cenv * ConcreteFragment.fragment ) :=
 .
 
 End ShapeDomain.
+
+Arguments γ {num_dom} {ind_env} a _.
