@@ -33,10 +33,10 @@ Section Schemata.
 
   (** [rule_with_new n] is the type of interaction structures
       requiring [n] new nodes and producing a rule. *)
-  Fixpoint rule_with_new (n:nat) : fnf n -> Interaction (℘ node) (rule name) :=
+  Fixpoint rule_with_new {n:nat} : fnf n -> Interaction (℘ node) (rule name) :=
     match n with
     | 0 => fun r => just r
-    | S n => fun r => bind with_new (fun α => rule_with_new n (r α))
+    | S n => fun r => bind with_new (fun α => rule_with_new (r α))
     end
   .
 
@@ -47,7 +47,7 @@ Section Schemata.
     match n with
     | 0 => fun r P => sub (Γ:=[node]) (belongs_to_graph (fst r)) P /\
                       sub (Γ:=[node]) (belongs_to_expr (snd r)) P
-    | S n => fun r P => forall α, rule_correct (r α) (fun β => β∈P \/ β=α)
+    | S n => fun r P => forall α, rule_correct (r α) (P ∪ singleton α)
     end
   .
 
@@ -113,13 +113,73 @@ Section Schemata.
   (** The properties of [Summary.env] are verified by unfoldings of
       the form [rule_with_new n r] *)
 
+  Obligation Tactic := idtac.
+  Definition swap_set (α β :node) (P:℘ node) : ℘ node :=
+    fun δ =>
+      if      δ == α then P β
+      else if δ == β then P α
+           else           P δ
+  .
+
+  Program Fixpoint swap_com_rec {n:nat} : forall {r:fnf n} {P:℘ node} (α β:node), (rule_with_new r).(Com) P -> (rule_with_new r).(Com) (swap_set α β P) :=
+    match n with
+    | 0 => fun _ _ _ _ _ => tt
+    | S n => fun r P α β c =>
+               if proj1_sig (projT1 c) == α then
+                 existT _ (exist _ β _) _
+               else
+                 _
+    end.
+  Next Obligation.
+    intros * <-; simpl in *.
+    intros r P α β [ [ δ hδ] c] <- ; simpl in *.
+    unfold swap_set.
+    rewrite if_eq_refl.
+    destruct (β==δ) as [ <- | _ ]; assumption.
+  Qed.
+  Next Obligation.
+    intros ? n <- r P α β [ [δ hδ] c ] <- ; simpl in *; intros _.
+    
+
+  Program Fixpoint swap_com {n:nat} : forall {r:fnf n} {P:℘ node} (α β:node), (rule_with_new r).(Com) P -> α ∉ P -> β ∉ P -> (rule_with_new r).(Com) P:=
+    match n with
+    | 0 => fun _ _ _ _ _ _ _ => tt
+    | S n => fun r P α β c hα hβ =>
+               if proj1_sig (projT1 c) == α then
+                 existT _ (exist _ β hβ) _
+               else
+                 _
+    end.
+  Next Obligation.
+    intros * <-; simpl in *.
+    intros r P α β [ [ δ hδ ] c ] hα hβ e; simpl in *.
+    Print sig.
+    
+
   Lemma vnf_rule_with_new (n:nat) (r:fnf (S n)) (P:℘ node) (α:node) :
     α ∈ P ->
     (rule_correct (r α) P) ->
     forall f,
       central P
-              (fun ν => (ν,f) ∈ γ_unfolding_with γ_name P (fun α => rule_with_new n (r α)) α).
+              (fun ν => (ν,f) ∈ γ_unfolding_with γ_name P (fun α => rule_with_new (r α)) α).
   Proof.
+    revert r P α.
+    induction n as [ | n hn ]; intros r P α.
+    - admit.
+    - intros h₁ h₂ f; simpl in h₂.
+      intros β δ hβ hδ ν h₃; unfold γ_unfolding_with in h₃ |- *; simpl in h₃ |- *.
+      destruct h₃ as [ [ [ γ hγ] c] h₃ ]; simpl in c,h₃.
+      destruct h₃ as [ [ [] r'] h₃ ]; simpl in h₃.
+      rewrite ?exists_sigT,?exists_sig; simpl.
+      destruct (β==γ) as [ <- | nβγ ].
+      + destruct (β==δ) as [ -> | nβδ ].
+        * assert (swap δ δ ν = ν) as e; [|rewrite e;clear e].
+          { extensionality x.
+            apply swap_self_id. }
+          exists δ; exists hδ; exists c.
+          rewrite ?exists_sigT,?exists_sig; simpl.
+          decompose_concl; eauto.
+        * 
   Admitted.
 
 
