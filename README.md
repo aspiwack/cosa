@@ -37,9 +37,9 @@ Interaction structures represent processes which involve the interaction of two 
 
 Cosa, being based on a pre-existing design on the concrete side, does not fully leverage the correspondance between abstract interpretation and forward refinement. However, thanks to the correspondence, it is possible to refine interaction structures leading, step-wise, to a realistic analysis. As refinement is going towards the abstract, we must strengthen the pre-conditions and weaken the post-conditions.
 
-Refinement is leveraged, in particular, in the design of inductive types where new names are being generated. In the first step, we just assume that the oracle can provide us with new names. Later we change the type of graphs to include a name of a new node, which we can increase as we go, removing the need for the oracle to traverse the graph to figure a new name (_work in progress_).
+Refinement is leveraged, in particular, in the design of inductive types where new names are being generated. In the first step, we just assume that the oracle can provide us with new names. Later we change the type of graphs to include a name of a new node, which we can increase as we go, removing the need for the oracle to traverse the graph to figure a new name ( _work in progress_ ).
 
-Interaction structures can also be used to represent proof systems. We use that property to define a generic notion of certificate that the oracle can provide to help the analysis check the correctness of its choice. Inclusion checking is designed to check a certificate (_work in progress_).
+Interaction structures can also be used to represent proof systems. We use that property to define a generic notion of certificate that the oracle can provide to help the analysis check the correctness of its choice. Inclusion checking is designed to check a certificate ( _work in progress_ ).
 
 Working with interaction structure is the main structuring choice of Cosa. It allows to describe the interaction with an external oracle in a systematic way, and allows to delay the calls to an actual oracle to a superficial layer completely separated from the correctness proof. The data structures manipulated by the algorithm do not need to be used in the correctness proofs either.
 
@@ -61,7 +61,7 @@ In the `Lib` directory, one can find generic types and proofs.
 * `MapReduce.v` proves properties about `List.fold_left` when the folded function is associative and commutative. It also provides a corresponding map-then-fold operation for `Ptree` (a association structure on positive from Compcert, see the `Map` therein)
 * `CompleteLattice.v` defines the complete lattice structure of n-ary predicates.
 * `Predicate.v` is essentially a notation layer atop `CompleteLattice.v` for unary predicates.
-* `Relation.v` describes how a relation can be lifted to a function on predicates (_monadic extension_).
+* `Relation.v` describes how a relation can be lifted to a function on predicates ( _monadic extension_ ).
 * `Finite.v` describes (skeletal) finite types as well as there relation to lists. Finite types are in particular instrumental in the design of _generic proof certificates_.
 
 ### Interaction ###
