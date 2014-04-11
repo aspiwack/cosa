@@ -221,7 +221,7 @@ Qed.
 
 Instance join_monotone Γ : Proper (sub ==> sub ==> sub) (@join Γ).
 Proof.
-  unfold Proper, respectful; intros **.
+  autounfold; intros **.
   by induction Γ.
 Qed.
 
@@ -281,7 +281,7 @@ Qed.
 
 Lemma Join_increasing Γ I : Proper (@sub (I::Γ) ==> sub) Join.
 Proof.
-  unfold Proper, respectful; simpl.
+  autounfold; simpl.
   intros p q p_sub_q.
   rewrite <- Join_supremum.
   intros i.
@@ -404,7 +404,7 @@ Qed.
 
 Instance meet_monotone Γ : Proper (sub ==> sub ==> sub) (@meet Γ).
 Proof.
-  unfold Proper, respectful; intros **.
+  autounfold; intros **.
   by induction Γ.
 Qed.
 
@@ -489,7 +489,7 @@ Qed.
 
 Lemma Meet_increasing Γ I : Proper (@sub (I::Γ) ==> sub) Meet.
 Proof.
-  unfold Proper, respectful; simpl.
+  autounfold; simpl.
   intros p q p_sub_q.
   rewrite <- Meet_infimum.
   intros i.
@@ -604,7 +604,7 @@ Definition postfixed_points {Γ} (F:rel Γ->rel Γ) (p:rel Γ) : Prop := sub (F 
 Lemma postfixed_points_apply Γ (F:rel Γ->rel Γ) (p:rel Γ) :
   Proper (sub==>sub) F -> postfixed_points F p -> postfixed_points F (F p).
 Proof.
-  unfold Proper, respectful, postfixed_points.
+  autounfold; unfold postfixed_points.
   crush.
 Qed.
 

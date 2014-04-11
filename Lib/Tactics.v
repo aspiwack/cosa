@@ -1,6 +1,7 @@
 (** Extra generic tactics. *)
 
 Require Import Maps.
+Require Coq.Classes.Morphisms.
 
 Ltac simplify_transitivity1 :=
   etransitivity; eauto; [idtac]
@@ -153,6 +154,9 @@ Ltac ptree_simplify_hyps :=
 .
 
 Ltac ptree_simplify := ptree_simplify_hyps; ptree_simplify_concl.
+
+(** Hints for auto* tactics **)
+Hint Unfold Morphisms.Proper Morphisms.respectful.
 
 (** A place holder for a by-file termination tactic. *)
 Ltac crush := fail.
