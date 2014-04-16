@@ -286,3 +286,29 @@ Next Obligation.
     intros **. simpl.
     now rewrite hw.
 Qed.
+
+
+(** Freshness *)
+
+Definition Fresh {A} `{Action A} (a:Atom) (x:A) :=
+  exists w, support w x /\ ~AtomSet.In a w
+.
+
+Remark equivariant_preserve_fresh A `(Action A) (a:Atom) (x:A) B `(Action B):
+  forall f:A->B, Equivariant f -> Fresh a x -> Fresh a (f x).
+Proof.
+  intros f hf [w [hw ha]].
+  exists w.
+  split; [|assumption].
+  now eapply equivariant_preserve_support.
+Qed.
+
+(** Freshness quantifier: "for all atom except a finite
+    set". Typically equivalent to "for all fresh atom" or "there exists
+    a fresh atom". *)
+Definition fq (Q:Atom->Prop) : Prop :=
+  exists w, forall a, ~AtomSet.In a w -> Q a
+.
+
+(* For some reason, fails as a reserved notation. *)
+Notation "'fresh' a .. b , p" := (fq (fun a => .. (fq (fun b => p)) .. )) (at level 200, a binder, right associativity, format "'[' 'fresh'  '/  ' a  ..  b ,  '/  ' p ']'").
