@@ -215,12 +215,48 @@ Module AtomSet <: S with Module E:=AtomOrdered.
       [MSet] library, but I'm not aware of it. *)
   Ltac prep_mem :=
   repeat match goal with
-  | |- mem _ _ = true => apply <- mem_spec
-  | h:mem _ _ = true |- _ => apply -> mem_spec in h
+  | |- context[mem _ _ = true] => rewrite -> mem_spec
+  | h:context[mem _ _ = true] |- _ => rewrite -> mem_spec in h
   end
   .
   Ltac fsetdec' := prep_mem; fsetdec.
 
+  (** A "map" function for atom sets. Useful as it defines an action
+     (as in the file [Cosa.Nominal.Set] on atom sets. *)
+  Definition map (f:Atom->Atom) (w:t) : t :=
+    fold (fun a wp => add (f a) wp) w empty
+  .
+
+  Lemma map_spec f w : forall b, mem b (map f w) = true <-> exists a, b = f a /\ mem a w = true.
+  Proof.
+    assert (forall b, mem b (map f w) = true <-> exists a, b = f a /\ mem a (fold add w empty) = true) as h.
+    { set (R := fun w₁ w₂ => forall b, mem b w₁ = true <-> exists a, b = f a /\ mem a w₂ = true).
+      apply (P.fold_rel (R:=R)); subst R; lazy beta.
+      + intros **.
+        firstorder fsetdec'.
+      + intros a w₁ w₂ h hr b.
+        generalize (Pos.eq_dec (f a) b); intros [ <- | hb ].
+        * split.
+          - intros _.
+            exists a.
+            fsetdec'.
+          - fsetdec'.
+        * rewrite F.add_neq_b; [|easy].
+          rewrite hr.
+          firstorder fsetdec'. }
+    intros b. rewrite h. clear h.
+    firstorder (try rewrite P.fold_identity in *; firstorder).
+  Qed.
+
+  Lemma map_spec_inj f w : (forall a b, f a = f b -> a = b) ->
+                   forall a, mem (f a) (map f w) = true <-> mem a w = true.
+  Proof.
+    intros inj a.
+    rewrite map_spec.
+    split.
+    + firstorder congruence.
+    + firstorder.
+  Qed.
 
 End AtomSet.
 
@@ -296,22 +332,6 @@ Definition Relevant (π:Permutation) (τ:Transposition) :=
 .
 
 Definition Canonical (π:Permutation) := List.Forall (fun τ => Relevant π τ) π.
-
-(* (** spiwack: I don't find this lemma obvious. As far as I can tell *)
-(*     though, it is missing in Pitts's lecture notes. *) *)
-(* Lemma canonical_monotonic_r (π:Permutation) (τ:Transposition) : *)
-(*   Canonical (π++[τ]) -> Canonical π. *)
-(* Proof. *)
-(*   unfold Canonical. rewrite !List.Forall_forall. *)
-(*   intros h τ' hτ'. *)
-(*   specialize (h τ'). *)
-(*   rewrite in_app_iff in h. *)
-(*   prove_hyp h. *)
-(*   { now left. } *)
-(*   unfold Relevant in *. *)
-(*   destruct h as [ hfst [ hsnd hboth ]]. *)
-(*   decompose_conj. *)
-(*   +  *)
 
 (** Proof adapted from lectures notes by Andrew Pitts (2011).  We only
     need the "pre-support" here, rather than the more precise

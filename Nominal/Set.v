@@ -3,6 +3,7 @@ Require Export Cosa.Nominal.Atom.
 
 Reserved Notation "π · x" (at level 40).
 Reserved Notation "⟨ a₁ a₂ ⟩" (at level 0, a₁ at level 0, a₂ at level 0).
+Reserved Notation "A '-fs->' B" (at level 99, right associativity, B at level 200).
 
 (** This notation for permutation should probably be in Atom.v. *)
 Notation "⟨ a₁ a₂ ⟩" := ([{| tfst:=a₁ ; tsnd:=a₂ |}]).
@@ -22,6 +23,39 @@ Class Action (A:Type) := {
 }.
 Notation "π · x" := (act π x).
 Existing Instance act_proper.
+
+(** Properties about actions *)
+
+Lemma act_injective π A `(Action A) : forall x y, π·x=π·y -> x=y.
+Proof.
+  intros x y h.
+  apply (f_equal (act (op_p π))) in h.
+  now rewrite <-!act_comp, !op_p_spec_l,!act_id in h.
+Qed.
+
+Lemma act_float_l π A `(Action A) : forall x y, (op_p π)·x = y <-> x = π·y.
+Proof.
+  assert (forall π' x y, (op_p π')·x = y -> x = π'·y) as h.
+  { intros π' x y h.
+    eapply (act_injective (op_p π')).
+    now rewrite <-!act_comp, !op_p_spec_l,!act_id. }
+  intros x y.
+  split.
+  + auto.
+  + intros hx.
+    symmetry.
+    apply h.
+    rewrite op_p_involutive.
+    congruence.
+Qed.
+
+Lemma act_float_r π A `(Action A) : forall x y, x = (op_p π)·y -> π·x = y.
+Proof.
+  intros **.
+  symmetry.
+  apply act_float_l.
+  congruence.
+Qed.
 
 (** Comon actions *)
 Program Instance perm_action : Action Atom := {|
@@ -74,6 +108,11 @@ Proof.
   reflexivity.
 Qed.
 
+(** The action on predicates extends naturally to decidable finite
+    sets of atom: [π·w := AtomSet.map (perm π w)]. This is not,
+    however, an action in the above sense, because we would need
+    quotients, and we decided to avoid quotients in this
+    developpement. *)
 
 (** Actions can be extended to products and sums by acting
     independently on the components. *)
@@ -107,6 +146,57 @@ Qed.
 Next Obligation.
   revert x. (* should not have been introduced *)
   intros [a|b]; rewrite act_comp; easy.
+Qed.
+
+(** These actions form sum and product generalise to arbitrary
+    (including infinite) sums and products (beware, the action for
+    arbitrary product does not coincide with that for functions). They
+    do not play well with the instance inference system however. We
+    can still define particular cases. Lists, which are essentially an
+    infinite sum of finite products, support such an action. *)
+Program Instance list_action A `(Action A) : Action (list A) := {|
+  act π l := List.map (act π) l
+|}.
+Next Obligation.
+  autounfold. intros π₁ π₂ hπ l q <-.
+  apply List.map_ext.
+  intros x.
+  now rewrite <- hπ.
+Qed.
+Next Obligation.
+  (* x should not have been introduced *)
+  revert x.
+  (* / *)
+  intros l.
+  erewrite List.map_ext.
+  { apply List.map_id. }
+  apply act_id.
+Qed.
+Next Obligation.
+  (* x should not have been introduced *)
+  revert x.
+  (* / *)
+  intros l.
+  erewrite List.map_ext.
+  { symmetry. apply Coqlib.list_map_compose. }
+  apply act_comp.
+Qed.
+
+(** It may be convienient to use isomoprhims with a Perm-Set to define
+    an action. *)
+Program Definition action_of_iso {A} {B} `{Action B} (f:A->B) (g:B->A)
+    (h₁:forall x, g (f x) = x) (h₂:forall x, f (g x) = x) : Action A := {|
+  act π x := g ( π·(f x) )
+|}.
+Next Obligation.
+  autounfold. intros π₁ π₂ hπ x y <-.
+  now rewrite <- hπ.
+Qed.
+Next Obligation.
+  now rewrite act_id.
+Qed.
+Next Obligation.
+  now rewrite act_comp, h₂.
 Qed.
 
 (** Support *)
@@ -257,8 +347,8 @@ Program Instance prod_nominal A B `(Nominal A) `(Nominal B): Nominal (A*B).
 Next Obligation.
   (* [a] and [b] are automatically introduced (as the result of an
      automatic [destruct]) by [Program]. *)
-  generalize (supported a); intros [ wa hwa ].
-  generalize (supported b); intros [ wb hwb ].
+  destruct (supported a) as [ wa hwa ].
+  destruct (supported b) as [ wb hwb ].
   exists (AtomSet.union wa wb).
   unfold support.
   intros π hπ. simpl. unfold support in *.
@@ -277,16 +367,123 @@ Next Obligation.
   revert x.
   (* / *)
   intros [ x | y ].
-  + generalize (supported x); intros [ w hw ].
+  + destruct (supported x) as [ w hw ].
     exists w. unfold support in *.
     intros **. simpl.
     now rewrite hw.
-  + generalize (supported y); intros [ w hw ].
+  + destruct (supported y) as [ w hw ].
     exists w. unfold support in *.
     intros **. simpl.
     now rewrite hw.
 Qed.
 
+(** The nominal set on sum extends to arbitrary sums, but the product
+    does not.  Lists are sums of final product, they are indeed lifted
+    to nominal set. *)
+Program Instance list_nominal A `(Nominal A) : Nominal (list A).
+Next Obligation.
+  (* [x] should not have been introduced. *)
+  revert x.
+  (* / *)
+  intros l.
+  induction l as [|x l [w hw]].
+  + exists AtomSet.empty.
+    now unfold support.
+  + destruct (supported x) as [w' hw'].
+    exists (AtomSet.union w w').
+    unfold support in *. simpl.
+    intros π hπ. change (List.map (act π) l) with (π·l).
+    rewrite hw, hw'.
+    - easy.
+    - intros a. specialize (hπ a).
+      AtomSet.fsetdec'.
+    - intros a. specialize (hπ a).
+      AtomSet.fsetdec'.
+Qed.
+
+(** Isomorphism, of course, lift to nominal sets. *)
+Program Definition nominal_of_iso {A} {B} `{Nominal B} (f:A->B) (g:B->A)
+    (h₁:forall x, g (f x) = x) (h₂:forall x, f (g x) = x) : Nominal A := {|
+  has_action := action_of_iso f g h₁ h₂
+|}.
+Next Obligation.
+  destruct (supported (f x)) as [w hw].
+  exists w.
+  unfold support in *. simpl.
+  intros π hπ.
+  rewrite hw,h₁; [reflexivity|].
+  easy.
+Qed.
+
+(** Functions are not all finitely supported (a finitely supported
+    function preserves all the permutations which fix all the elements
+    of their support). Finitely supported functions, however, are by
+    definition a nominal set, and form the exponential objects of the
+    category of nominal sets. We start by defining the generic
+    restriction of an Perm-set to a nominal set by taking its finitely
+    supported elements. *)
+Definition FSElt (A:Type) `{Action A} := { x:A | exists w, support w x }.
+
+(** This axiom is necessary to define avoid quotients. Since
+    propositional extensionality implies proof irrelevance, it is
+    actually provable in our context. But it is cleaner to show the
+    assumptions precisely. *)
+Axiom fs_extensionality : forall A `(Action A) (x y:FSElt A),
+                            proj1_sig x = proj1_sig y -> x = y.
+
+Program Instance fs_action (A:Type) `(Action A) : Action (FSElt A) := {|
+  act π x := π·(x:A)
+|}.
+Next Obligation.
+  destruct x as [x [w hw]]. simpl.
+  set (w' := AtomSet.map (act π) w).
+  exists w'.
+  unfold support in *. intros π' h.
+  apply act_float_l. rewrite <-!act_comp.
+  apply hw.
+  intros a ha.
+  rewrite ->!act_comp.
+  rewrite h.
+  + now rewrite <-act_comp, op_p_spec_l,act_id.
+  + unfold w'.
+    rewrite AtomSet.map_spec_inj.
+    * easy.
+    * apply act_injective.
+Qed.
+Next Obligation.
+  autounfold.
+  intros π₁ π₂ hπ x y <-.
+  apply fs_extensionality. simpl.
+  now rewrite hπ.
+Qed.
+Next Obligation.
+  apply fs_extensionality. simpl.
+  apply act_id.
+Qed.
+Next Obligation.
+  apply fs_extensionality. simpl.
+  apply act_comp.
+Qed.
+
+Program Instance fs_nominal (A:Type) `(Action A) : Nominal (FSElt A).
+Next Obligation.
+  destruct x as [x [w hw]].
+  exists w.
+  unfold support. intros π hπ. simpl.
+  apply fs_extensionality. simpl.
+  now apply hw.
+Qed.
+
+(** We give a special alias in the case of functions to define a
+    coercion *)
+Definition FSFun A `{Action A} B `{Action B} : Type := FSElt (A->B).
+Notation "A '-fs->' B" := (FSFun A B).
+
+Program Definition fun_of_fs_fun A `{Action A} B `{Action B} (f:A-fs->B) : A-> B := f.
+Coercion fun_of_fs_fun : FSFun >-> Funclass.
+
+
+Program Instance fsfun_nominal A `(Action A) B `(Action B) : Nominal (FSFun A B) := fs_nominal _ _.
 
 (** Freshness *)
 
