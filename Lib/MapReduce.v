@@ -7,7 +7,7 @@ Require Import Cosa.Lib.Algebra.
 Require Coq.Lists.List.
 Require Import Coq.Lists.SetoidPermutation.
 Import List.ListNotations.
-Require Import Maps.
+Require Import Cosa.Lib.CMaps.
 Require Import Cosa.Lib.Extra.
 
 (** A toned down verion of map/fold for associative and commutative
@@ -103,21 +103,21 @@ Section MapReduce.
     now apply list_reduce_permutation.
   Qed.
 
-  (** The following properties are proved over [PTree.t]. In the
+  (** The following properties are proved over [CPTree.t]. In the
       unlikely event where we would need trees over other indexes, we
       could design a functor in the spirit of
       [Maps.Tree_Properties]. *)
-  Definition ptree_map_reduce (m:PTree.t A) : B :=
-    PTree.fold (fun b k a => b ⋆ f k a) m n
+  Definition ptree_map_reduce (m:CPTree.t A) : B :=
+    CPTree.fold (fun b k a => b ⋆ f k a) m n
   .
 
   Definition ptree_map_reduce_spec m :
-    ptree_map_reduce m = list_reduce (List.map (fun x => f (fst x) (snd x)) (PTree.elements m)).
+    ptree_map_reduce m = list_reduce (List.map (fun x => f (fst x) (snd x)) (CPTree.elements m)).
   Proof.
     unfold ptree_map_reduce.
-    rewrite PTree.fold_spec.
+    rewrite CPTree.fold_spec.
     unfold list_reduce.
-    generalize (PTree.elements m) n.
+    generalize (CPTree.elements m) n.
     clear.
     (* problem reduced to proving a general fusion lemma on fold_left and map *)
     intros l.
@@ -134,7 +134,7 @@ End MapReduce.
 
 (** Left-biaised union. Meant to be used when trees are known to be disjoint. *)
 Definition ptree_union {A} :=
-  @PTree.combine A A A (fun a b =>
+  @CPTree.combine A A A (fun a b =>
                           match a,b with
                           | Some x , _ => Some x
                           | _ , Some y => Some y
@@ -143,18 +143,18 @@ Definition ptree_union {A} :=
 .
 
 (** Disjointness for trees. *)
-Definition ptree_disjoint {A} (m₁ m₂:PTree.t A) : Prop :=
+Definition ptree_disjoint {A} (m₁ m₂:CPTree.t A) : Prop :=
   forall k a a', m₁!k = Some a -> m₂!k = Some a' -> False
 .
 
-Lemma ptree_disjoint_elements {A} (m₁ m₂:PTree.t A) :
-  ptree_disjoint m₁ m₂ -> Coqlib.list_disjoint (PTree.elements m₁) (PTree.elements m₂).
+Lemma ptree_disjoint_elements {A} (m₁ m₂:CPTree.t A) :
+  ptree_disjoint m₁ m₂ -> Coqlib.list_disjoint (CPTree.elements m₁) (CPTree.elements m₂).
 Proof.
   intros h; unfold ptree_disjoint in h.
   unfold Coqlib.list_disjoint.
   intros [k₁ a₁] [k₂ a₂] h₁ h₂ hf.
   injection hf; clear hf; intros <- <-.
-  eauto using PTree.elements_complete.
+  eauto using CPTree.elements_complete.
 Qed.
 
 (** Side lemmas to tie Coq's SetoidList/SetoidPermutation and Compcert's Coqlib. *)
@@ -204,15 +204,15 @@ Proof.
     eauto.
 Qed.
 
-(** A corollary of [PTree.elements_keys_norepet] and [list_norepet_map] *)
-Corollary ptree_elements_norepet A (m:PTree.t A) : Coqlib.list_norepet (PTree.elements m).
+(** A corollary of [CPTree.elements_keys_norepet] and [list_norepet_map] *)
+Corollary ptree_elements_norepet A (m:CPTree.t A) : Coqlib.list_norepet (CPTree.elements m).
 Proof.
-  eapply list_norepet_map, PTree.elements_keys_norepet.
+  eapply list_norepet_map, CPTree.elements_keys_norepet.
 Qed.
 
-Lemma ptree_permutation_equiv A (m₁ m₂:PTree.t A) :
-  PTree_Properties.Equal (eqA:=eq) _ m₁ m₂->
-  PermutationA eq (PTree.elements m₁) (PTree.elements m₂).
+Lemma ptree_permutation_equiv A (m₁ m₂:CPTree.t A) :
+  CPTree_Properties.Equal (eqA:=eq) _ m₁ m₂->
+  PermutationA eq (CPTree.elements m₁) (CPTree.elements m₂).
 Proof.
   intros h.
   apply NoDupA_equivlistA_PermutationA.
@@ -223,22 +223,22 @@ Proof.
     apply ptree_elements_norepet.
   - unfold SetoidList.equivlistA.
     intros [k a].
-    assert (forall A m k (v: A), List.In (k, v) (PTree.elements m) <-> m!k = Some v)
+    assert (forall A m k (v: A), List.In (k, v) (CPTree.elements m) <-> m!k = Some v)
       as elements_spec.
     { clear.
       intros **; split.
-      - apply PTree.elements_complete.
-      - apply PTree.elements_correct. }
+      - apply CPTree.elements_complete.
+      - apply CPTree.elements_correct. }
     rewrite <- !In_InA, !elements_spec.
     specialize (h k).
     destruct (m₁!k); destruct (m₂!k); split;(congruence||contradiction).
 Qed.
 
 (* arnaud: j'aimerais bien partager un peu de la preuve d'au dessus, mais je n'y arrive pas… *)
-Lemma element_of_disjoint_union A (m₁ m₂:PTree.t A) :
+Lemma element_of_disjoint_union A (m₁ m₂:CPTree.t A) :
   ptree_disjoint m₁ m₂ ->
-  PermutationA eq (PTree.elements (ptree_union m₁ m₂))
-                  ((PTree.elements m₁)++(PTree.elements m₂)).
+  PermutationA eq (CPTree.elements (ptree_union m₁ m₂))
+                  ((CPTree.elements m₁)++(CPTree.elements m₂)).
 Proof.
   intros disj.
   apply NoDupA_equivlistA_PermutationA.
@@ -252,16 +252,16 @@ Proof.
     + now apply ptree_disjoint_elements.
   - unfold SetoidList.equivlistA.
     intros [k a].
-    assert (forall A m k (v: A), List.In (k, v) (PTree.elements m) <-> m!k = Some v)
+    assert (forall A m k (v: A), List.In (k, v) (CPTree.elements m) <-> m!k = Some v)
       as elements_spec.
     { clear.
       intros **; split.
-      - apply PTree.elements_complete.
-      - apply PTree.elements_correct. }
+      - apply CPTree.elements_complete.
+      - apply CPTree.elements_correct. }
     rewrite <- ?In_InA.
     rewrite List.in_app_iff, ?elements_spec.
     unfold ptree_union.
-    rewrite PTree.gcombine; [ | easy ].
+    rewrite CPTree.gcombine; [ | easy ].
     split.
     + destruct (m₁!k); destruct (m₂!k);  firstorder.
     + unfold ptree_disjoint in disj.
@@ -302,7 +302,7 @@ Lemma ptree_equiv_map_reduce
         A B m₁ m₂ (f:positive->A->B)
         r {_:Associative eq r} {_:Commutative eq r}
         e {_:LeftNeutral eq r e} :
-  PTree_Properties.Equal (eqA:=eq) _ m₁ m₂->
+  CPTree_Properties.Equal (eqA:=eq) _ m₁ m₂->
   ptree_map_reduce f r e m₁ = ptree_map_reduce f r e m₂.
 Proof.
   intros h.
@@ -313,7 +313,7 @@ Proof.
 Qed.
 
 
-(** [PTree.t]-s map/reduce can be split. For
+(** [CPTree.t]-s map/reduce can be split. For
     the sake simplicity, we shall content ourselves with the version up to [eq]. *)
 Theorem ptree_disjoint_map_reduce
         A B m₁ m₂ (f:positive->A->B)
@@ -335,21 +335,21 @@ Lemma ptree_map_reduce_singleton
         A B k x (f:positive->A->B)
         r {_:Associative eq r} {_:Commutative eq r}
         e {_:LeftNeutral eq r e} :
-  ptree_map_reduce f r e (PTree.set k x (PTree.empty _)) = f k x.
+  ptree_map_reduce f r e (CPTree.set k x (CPTree.empty _)) = f k x.
 Proof.
   rewrite ptree_map_reduce_spec.
-  replace (PTree.elements (PTree.set k x (PTree.empty _))) with [(k,x)]%list.
+  replace (CPTree.elements (CPTree.set k x (CPTree.empty _))) with [(k,x)]%list.
   { simpl.
     now rewrite left_neutrality. }
   apply singleton_eq_norepet.
   + intros [ k' y ].
     split.
     * intros h.
-      apply PTree.elements_complete in h.
-      ptree_simplify; congruence.
+      apply CPTree.elements_complete in h.
+      CPTree.simplify; congruence.
     * intros ->.
-      apply PTree.elements_correct.
-      ptree_simplify; congruence.
+      apply CPTree.elements_correct.
+      CPTree.simplify; congruence.
   + apply ptree_elements_norepet.
 Qed.
 
@@ -358,25 +358,25 @@ Corollary ptree_set_map_reduce
         r {_:Associative eq r} {_:Commutative eq r}
         e {_:LeftNeutral eq r e} :
   m!k = None ->
-  ptree_map_reduce f r e (PTree.set k x m) =
+  ptree_map_reduce f r e (CPTree.set k x m) =
                r (f k x) (ptree_map_reduce f r e m).
 Proof.
   intros h.
   transitivity
-   (ptree_map_reduce f r e (ptree_union (PTree.set k x (PTree.empty _)) m)).
+   (ptree_map_reduce f r e (ptree_union (CPTree.set k x (CPTree.empty _)) m)).
   { apply ptree_equiv_map_reduce; [typeclasses eauto .. | ].
-    rewrite ptree_equal_eq_alt.
+    rewrite CPTree_Properties.equal_eq_alt.
     intros k'.
     unfold ptree_union.
-    rewrite PTree.gcombine; [|easy].
-    ptree_simplify; try congruence.
+    rewrite CPTree.gcombine; [|easy].
+    CPTree.simplify; try congruence.
     now destruct (m!k'). }
   transitivity
-   (r (ptree_map_reduce f r e (PTree.set k x (PTree.empty _))) (ptree_map_reduce f r e m)).
+   (r (ptree_map_reduce f r e (CPTree.set k x (CPTree.empty _))) (ptree_map_reduce f r e m)).
   { apply ptree_disjoint_map_reduce; [typeclasses eauto..|].
     unfold ptree_disjoint.
     intros k' y z.
-    ptree_simplify; congruence. }
+    CPTree.simplify; congruence. }
   f_equal.
   now rewrite ptree_map_reduce_singleton; [|typeclasses eauto..].
 Qed.
@@ -387,19 +387,19 @@ Corollary ptree_remove_map_reduce
         e {_:LeftNeutral eq r e} :
   m!k = Some x ->
   ptree_map_reduce f r e m =
-               r (f k x) (ptree_map_reduce f r e (PTree.remove k m)).
+               r (f k x) (ptree_map_reduce f r e (CPTree.remove k m)).
 Proof.
   intros h.
-  set (m' := PTree.remove k m).
-  transitivity (ptree_map_reduce f r e (PTree.set k x m')).
+  set (m' := CPTree.remove k m).
+  transitivity (ptree_map_reduce f r e (CPTree.set k x m')).
   { apply ptree_equiv_map_reduce; [typeclasses eauto .. | ].
-    rewrite ptree_equal_eq_alt.
+    rewrite CPTree_Properties.equal_eq_alt.
     intros k'.
     unfold m'; clear m'.
-    ptree_simplify; congruence. }
+    CPTree.simplify; congruence. }
   apply ptree_set_map_reduce; [typeclasses eauto .. | ].
   unfold m'; clear m'.
-  ptree_simplify; congruence.
+  CPTree.simplify; congruence.
 Qed.
 
 

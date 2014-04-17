@@ -100,60 +100,6 @@ Ltac prove_hyp h :=
 .
 
 
-(** Tactics to simplify PTree expressions. *)
-
-Lemma neq_symmetric A : forall (n m:A), m<>n -> n<>m.
-Proof. congruence. Qed.
-
-Ltac ptree_simplify_hyp h :=
-  repeat match type of h with
-  | appcontext[PTree.get ?n (PTree.set ?m _ _)] => constr_eq n m;rewrite PTree.gss in h
-  | appcontext[PTree.get ?n (PTree.set ?m _ _)] =>
-    lazymatch goal with
-    | ne : n<>m |- _ => rewrite PTree.gso in h; [| exact ne]
-    | ne : m<>n |- _ => rewrite PTree.gso in h; [| exact (neq_symmetric _ n m ne)]
-    | |- _ => generalize (PTree.elt_eq n m); intros [ <- | ? ]
-    end
-  | appcontext[PTree.get ?n (PTree.remove ?m _)] =>
-         constr_eq n m;rewrite PTree.grs in h
-  | appcontext[PTree.get ?n (PTree.remove ?m _)] =>
-    lazymatch goal with
-    | ne : n<>m |- _ => rewrite PTree.gro in h; [| exact ne]
-    | ne : m<>n |- _ => rewrite PTree.gro in h; [| exact (neq_symmetric _ n m ne)]
-    | |- _ => generalize (PTree.elt_eq n m); intros [ <- | ? ]
-    end
-  | appcontext[PTree.get _ (PTree.empty _)] => rewrite PTree.gempty in h
-  end
-.
-
-Ltac ptree_simplify_concl :=
-  repeat match goal with
-  | |- appcontext[PTree.get ?n (PTree.set ?m _ _)] => constr_eq n m;rewrite PTree.gss
-  | |- appcontext[PTree.get ?n (PTree.set ?m _ _)] =>
-    lazymatch goal with
-    | ne : n<>m |- _ => rewrite PTree.gso; [| exact ne]
-    | ne : m<>n |- _ => rewrite PTree.gso; [| exact (neq_symmetric _ n m ne)]
-    | |- _ => generalize (PTree.elt_eq n m); intros [ <- | ? ]
-    end
-  | |- appcontext[PTree.get ?n (PTree.remove ?m _)] =>
-         constr_eq n m;rewrite PTree.grs
-  | |- appcontext[PTree.get ?n (PTree.remove ?m _)] =>
-    lazymatch goal with
-    | ne : n<>m |- _ => rewrite PTree.gro; [| exact ne]
-    | ne : m<>n |- _ => rewrite PTree.gro; [| exact (neq_symmetric _ n m ne)]
-    | |- _ => generalize (PTree.elt_eq n m); intros [ <- | ? ]
-    end
-  | |- appcontext[PTree.get _ (PTree.empty _)] => rewrite PTree.gempty
-  end
-.
-
-Ltac ptree_simplify_hyps :=
-  repeat match goal with
-  | h : _ |- _ => progress ptree_simplify_hyp h
-  end
-.
-
-Ltac ptree_simplify := ptree_simplify_hyps; ptree_simplify_concl.
 
 (** Hints for auto* tactics **)
 Hint Unfold Morphisms.Proper Morphisms.respectful.

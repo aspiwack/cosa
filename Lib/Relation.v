@@ -40,16 +40,16 @@ Qed.
 Definition comp (A B C:Type) (R:A->B->Prop) (Q:B->C->Prop) : A->C->Prop :=
   fun a c => exists b, R a b /\ Q b c
 .
-Notation "R · Q" := (comp _ _ _ R Q) (at level 5,right associativity).
+Notation "R • Q" := (comp _ _ _ R Q) (at level 5,right associativity).
 
 Lemma comp_associative A B C D (R:A->B->Prop) (Q:B->C->Prop) (P:C->D->Prop) :
-                    (R·Q)·P ⇔ R·(Q·P).
+                    (R•Q)•P ⇔ R•(Q•P).
 Proof.
   unfold comp,equiv.
   firstorder.
 Qed.
 
-Lemma comp_eq_neutral A B (R:A->B->Prop) : eq·R ⇔ R /\ R·eq ⇔ R.
+Lemma comp_eq_neutral A B (R:A->B->Prop) : eq•R ⇔ R /\ R•eq ⇔ R.
 Proof.
   unfold comp,equiv.
   firstorder subst; easy.

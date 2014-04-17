@@ -43,7 +43,7 @@ Definition Simulation {S T} (i:Interface S) (j:Interface T) (R:S->T->Prop) : Pro
 
 Lemma correspondance_transitive {S₁ T₁ S₂ T₂ S₃ T₃}
       (i:Interaction S₁ T₁) (j:Interaction S₂ T₂) (k:Interaction S₃ T₃) R₁ Q₁ R₂ Q₂ :
-  Correspondance i j R₁ Q₁ -> Correspondance j k R₂ Q₂ -> Correspondance i k (R₁·R₂) (Q₁·Q₂).
+  Correspondance i j R₁ Q₁ -> Correspondance j k R₂ Q₂ -> Correspondance i k (R₁•R₂) (Q₁•Q₂).
 Proof.
   unfold Simulation, Relation.comp.
   intros h₁ h₂.
@@ -67,7 +67,7 @@ Proof.
 Qed.
 
 Lemma simulation_transitive {S T U} (i:Interface S) (j:Interface T) (k:Interface U) Q R :
-                  Simulation i j R -> Simulation j k Q -> Simulation i k (R·Q).
+                  Simulation i j R -> Simulation j k Q -> Simulation i k (R•Q).
 Proof. apply correspondance_transitive. Qed.
 
 Instance correspondance_proper_impl S₁ T₁ S₂ T₂ (i:Interaction S₁ T₁) (j:Interaction S₂ T₂) :

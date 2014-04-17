@@ -8,30 +8,52 @@ Import Coq.Classes.EquivDec.
 Import Values.
 Import List.ListNotations.
 Require Import Coq.Lists.SetoidPermutation.
+Require Import Cosa.Nominal.Set.
 
 (** The bare graphs consitute the memory model of the shape domain.
     They are to be paired with a numerical domain to make a complete
     abstract domain. *)
 
+(** [Nominal] Instances for Compcert types (all discrete, of
+    course). *)
+
+Instance chunk_nominal : Nominal AST.memory_chunk := discrete_nominal.
+
 (** Basic types *)
 
 (** Types of the nodes of the graph. *)
-Definition node : Type := positive.
+Definition node : Type := Atom.
+Instance node_nominal : Nominal Atom.
+Proof. typeclasses eauto. Qed.
+
 Definition node_eq_dec := Pos.eq_dec.
 
 Instance node_eq_dec_inst : EquivDec.EqDec node eq.
 Proof. exact node_eq_dec. Qed.
 
-Module NodeTree := PTree.
+Module NodeTree := AtomTree.
 
 (** In this version offsets are concrete [int], however, in more
     fine-grain world, they would be abstract expressions. *)
 Definition offs := int.
+Instance offs_nominal : Nominal offs := discrete_nominal.
 
 (** Representation of pointers in the abstract graph. *)
-Definition off_node := (node * int)%type.
+Definition off_node := (node * offs)%type.
 
-Notation valuation := (node -> val).
+Instance val_nominal : Nominal val := discrete_nominal.
+
+(** Spiwack: I'm really not sure it matters wether valuation are
+    finitely supported or not.  Concretely a finitely supported
+    valuation is constant except on a finite set of atoms. This is not
+    unreasonable to ask, but it may prove harder to achieve than
+    expected. And it may not be needed, after all, what really matter
+    are sets of valuations. Truth be told: this file seems indifferent
+    to whether valuations are finitely supported or not. Up to the
+    fact, of course, that some [Nominal] instances would have to be
+    changed into [Action]. So we'll see in further files which choice
+    works best. *)
+Notation valuation := (node -fs-> val).
 
 
 (** Concrete states *)
@@ -41,6 +63,16 @@ Notation valuation := (node -> val).
     fragment.  The valuation maps nodes to their addresses or their
     numerical value. *)
 Definition conc := (valuation * ConcreteFragment.fragment)%type.
+
+Instance fragment_nominal : Nominal ConcreteFragment.fragment :=
+  Nominal.Set.discrete_nominal
+.
+
+Instance conc_nominal : Nominal conc.
+Proof.
+  typeclasses eauto.
+Qed.
+
 
 (** We extend the separating star on concrete heap fragments to
     concrete graph representations. *)
@@ -100,7 +132,26 @@ Record pt_edge := {
   size : AST.memory_chunk
 }.
 
+Program Instance pt_edge_nominal : Nominal pt_edge :=
+  nominal_of_iso
+    (fun e => (e.(destination),e.(size)))
+    (fun e' => {| destination := fst e' ; size := snd e' |})
+    _ _
+.
+Next Obligation.
+  (* [x] should not have been introduced. *)
+  revert x.
+  (* / *)
+  intros [].
+  easy.
+Qed.
+
 Definition block := list (offs*pt_edge).
+
+Instance block_nominal : Nominal block.
+Proof.
+  typeclasses eauto.
+Qed.
 
 Inductive γ_point_to₀ (α:node) (o:offs) (c:AST.memory_chunk) (β:node) (o':offs) (f:fragment) (ν:valuation) : Prop :=
 | γ_point_to_offs : forall b i b' i',
@@ -142,11 +193,34 @@ Section Graph.
       and inductive segment in [Cosa.Shape.Inductive]. *)
 
   Context {summary:Type} (γ_summary : summary -> node -> ℘ conc).
+  Context {summary_nominal:Nominal summary}.
+  Existing Instance summary_nominal.
 
   Inductive edge :=
   | Point_to (b:block)
   | Summarized (s:summary)
   .
+
+  Program Instance edge_nominal : Nominal edge :=
+    nominal_of_iso
+      (fun e =>
+         match e return _ with Point_to b => inl b | Summarized s => inr s end)
+      (fun e =>
+         match e return _ with inl b => Point_to b | inr s => Summarized s end)
+      _ _
+  .
+  Next Obligation.
+    (* [x] should not have been introduced *)
+    revert x.
+    (* / *)
+    intros [|]; easy.
+  Qed.
+  Next Obligation.
+    (* [x] should not have been introduced *)
+    revert x.
+    (* / *)
+    intros [|]; easy.
+  Qed.
 
   Definition γ_edge (α:node) (e:edge) :=
     match e with
@@ -157,12 +231,14 @@ Section Graph.
 
   Definition t := NodeTree.t edge.
 
-  Definition equiv : t -> t -> Prop := PTree_Properties.Equal (eqA:=eq) _.
+  Instance graph_nominal : Nominal t := Nominal.Set.map_nominal _ _.
+
+  Definition equiv : t -> t -> Prop := AtomTree_Properties.Equal (eqA:=eq) _.
 
   Global Instance equiv_equivalence : Equivalence equiv.
   Proof.
     unfold equiv.
-    apply PTree_Properties.Equal_Equivalence.
+    apply AtomTree_Properties.Equal_Equivalence.
   Qed.
 
   Lemma equiv_alt g₁ g₂ : equiv g₁ g₂ <-> (forall α, g₁!α = g₂!α).
@@ -217,9 +293,9 @@ Section Graph.
     { unfold ptree_disjoint.
       intros β e₁ e₂ hg' hgα.
       unfold g',gα in hg',hgα.
-      ptree_simplify;congruence. }
+      CPTree.simplify;congruence. }
     assert (Graph.equiv g (ptree_union g' gα)) as g_g'_gα.
-    { unfold Graph.equiv,PTree_Properties.Equal.
+    { unfold Graph.equiv,AtomTree_Properties.Equal.
       intros β.
       generalize (node_eq_dec α β).
       intros [ <- | α_neq_β ].
@@ -227,30 +303,30 @@ Section Graph.
         unfold ptree_union.
         rewrite NodeTree.gcombine; [|easy].
         unfold g',gα.
-        ptree_simplify.
+        CPTree.simplify.
         reflexivity.
       + unfold ptree_union.
         rewrite NodeTree.gcombine; [|easy].
         unfold g',gα.
-        ptree_simplify.
+        CPTree.simplify.
         now destruct (g!β). }
     transitivity (γ (ptree_union g' gα)).
     { now apply γ_equiv. }
     assert (γ_edge α e = γ gα) as ->.
     { unfold γ; rewrite ptree_map_reduce_spec.
-      assert ([(α,e)] = PTree.elements gα) as <-.
+      assert ([(α,e)] = AtomTree.elements gα) as <-.
       { clear.
         apply singleton_eq_norepet.
         { intros [β e']; split.
           - intros h.
             apply NodeTree.elements_complete in h.
             unfold gα in h.
-            ptree_simplify; congruence.
+            CPTree.simplify; congruence.
           - intros h; simpl in h.
             rewrite h; clear β e' h.
             apply NodeTree.elements_correct.
             unfold gα.
-            ptree_simplify; congruence. }
+            CPTree.simplify; congruence. }
         apply ptree_elements_norepet. }
       simpl.
       now rewrite left_neutrality. }
@@ -267,9 +343,9 @@ Section Graph.
     { f_equal.
       apply γ_equiv,equiv_alt.
       intros β. unfold g'; clear g'.
-      ptree_simplify; congruence. }
+      CPTree.simplify; congruence. }
     unfold g'; clear g'.
-    ptree_simplify; congruence.
+    CPTree.simplify; congruence.
   Qed.
 
   Theorem star_summarized_edge (g:t) α :
@@ -290,13 +366,13 @@ Section Graph.
   Lemma γ_empty : γ (NodeTree.empty _) = empty.
   Proof.
     unfold γ; rewrite ptree_map_reduce_spec.
-    replace (PTree.elements (NodeTree.empty edge)) with (@nil (positive*edge)).
+    replace (AtomTree.elements (NodeTree.empty edge)) with (@nil (positive*edge)).
     + easy.
-    + assert (forall x, ~List.In x (PTree.elements (NodeTree.empty edge))) as h.
+    + assert (forall x, ~List.In x (AtomTree.elements (NodeTree.empty edge))) as h.
       { intros [α e] h.
-        apply PTree.elements_complete in h.
-        ptree_simplify; congruence. }
-      destruct (PTree.elements (NodeTree.empty edge)) as [ | x l ].
+        apply AtomTree.elements_complete in h.
+        CPTree.simplify; congruence. }
+      destruct (AtomTree.elements (NodeTree.empty edge)) as [ | x l ].
       * reflexivity.
       * specialize (h x); simpl in h.
         contradiction h.
@@ -309,42 +385,42 @@ Section Graph.
     fun δ => δ = α \/ δ = β
   .
 
-  Lemma valuation_not_fixed_point_to α o chunk β o' f:
-    central (belongs_to_point_to α o chunk β o')
-            (fun ν => (ν,f) ∈ γ_point_to α o chunk β o').
-  Proof.
-    unfold central. intros δ γ hδ hγ ν h₁.
-    unfold belongs_to_point_to in *.
-    destruct h₁; simpl in *.
-    + eleft; eauto; simpl.
-      * unfold swap.
-        destruct (α == δ) as [ <- | _ ].
-        { clear -hδ; firstorder. }
-        destruct (α == γ) as [ <- | _ ].
-        { clear -hγ; firstorder. }
-        easy.
-      * unfold swap.
-        destruct (β == δ) as [ <- | _ ].
-        { clear -hδ; firstorder. }
-        destruct (β == γ) as [ <- | _ ].
-        { clear -hγ; firstorder. }
-        easy.
-    + eright; eauto; simpl.
-      * unfold swap.
-        destruct (α == δ) as [ <- | _ ].
-        { clear -hδ; firstorder. }
-        destruct (α == γ) as [ <- | _ ].
-        { clear -hγ; firstorder. }
-        easy.
-      * replace (swap δ γ ν β) with (ν β).
-        { easy. }
-        unfold swap.
-        destruct (β == δ) as [ <- | _ ].
-        { clear -hδ; firstorder. }
-        destruct (β == γ) as [ <- | _ ].
-        { clear -hγ; firstorder. }
-        easy.
-  Qed.
+  (* Lemma valuation_not_fixed_point_to α o chunk β o' f: *)
+  (*   central (belongs_to_point_to α o chunk β o') *)
+  (*           (fun ν => (ν,f) ∈ γ_point_to α o chunk β o'). *)
+  (* Proof. *)
+  (*   unfold central. intros δ γ hδ hγ ν h₁. *)
+  (*   unfold belongs_to_point_to in *. *)
+  (*   destruct h₁; simpl in *. *)
+  (*   + eleft; eauto; simpl. *)
+  (*     * unfold Valuation.swap. *)
+  (*       destruct (α == δ) as [ <- | _ ]. *)
+  (*       { clear -hδ; firstorder. } *)
+  (*       destruct (α == γ) as [ <- | _ ]. *)
+  (*       { clear -hγ; firstorder. } *)
+  (*       easy. *)
+  (*     * unfold Valuation.swap. *)
+  (*       destruct (β == δ) as [ <- | _ ]. *)
+  (*       { clear -hδ; firstorder. } *)
+  (*       destruct (β == γ) as [ <- | _ ]. *)
+  (*       { clear -hγ; firstorder. } *)
+  (*       easy. *)
+  (*   + eright; eauto; simpl. *)
+  (*     * unfold Valuation.swap. *)
+  (*       destruct (α == δ) as [ <- | _ ]. *)
+  (*       { clear -hδ; firstorder. } *)
+  (*       destruct (α == γ) as [ <- | _ ]. *)
+  (*       { clear -hγ; firstorder. } *)
+  (*       easy. *)
+  (*     * replace (Valuation.swap δ γ ν β) with (ν β). *)
+  (*       { easy. } *)
+  (*       unfold Valuation.swap. *)
+  (*       destruct (β == δ) as [ <- | _ ]. *)
+  (*       { clear -hδ; firstorder. } *)
+  (*       destruct (β == γ) as [ <- | _ ]. *)
+  (*       { clear -hγ; firstorder. } *)
+  (*       easy. *)
+  (* Qed. *)
 
   Definition belongs_to_block α b : ℘ node :=
     (fun β => β = α) ∪ (* case where the block is empty *)
@@ -358,60 +434,60 @@ Section Graph.
                 )
   .
 
-  Lemma valuation_not_fixed_block α b f :
-    central (belongs_to_block α b)
-            (fun ν => (ν,f) ∈ γ_block α b).
-  Proof.
-    unfold central. intros β δ hβ hδ ν. revert f.
-    induction b as [ | p b hb ]; intros f h₁.
-    - (* b = [] *)
-      unfold γ_block in *; simpl in *.
-      unfold empty in *; simpl in *.
-      assumption.
-    - (* b = p::b *)
-      unfold γ_block in h₁ |- *.
-      rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
-      rewrite list_map_cons,(list_reduce_cons eq) in h₁; [ | typeclasses eauto .. ].
-      destruct h₁ as [ [ ν₁ f₁ ] [ [ ν₂ f₂ ] [ h₂ [ h₃ [ h₄ h₅ ]]]]]; simpl in h₄,h₅.
-      destruct h₄.
-      exists (swap β δ ν₁,f₁); exists (swap β δ ν₁,f₂).
-      decompose_concl.
-      + apply valuation_not_fixed_point_to.
-        * clear -hβ; unfold belongs_to_block in hβ.
-          intros h.
-          apply hβ.
-          right.
-          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
-          now left.
-        * clear -hδ; unfold belongs_to_block in hδ.
-          intros h.
-          apply hδ.
-          right.
-          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
-          now left.
-        * assumption.
-      + apply hb.
-        * clear -hβ; unfold belongs_to_block in hβ.
-          intros h.
-          apply hβ.
-          destruct h.
-          { now left. }
-          right.
-          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
-          now right.
-        * clear -hδ; unfold belongs_to_block in hδ.
-          intros h.
-          apply hδ.
-          destruct h.
-          { now left. }
-          right.
-          rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ].
-          now right.
-        * apply h₃.
-      + split; simpl.
-        { constructor. }
-        assumption.
-  Qed.
+  (* Lemma valuation_not_fixed_block α b f : *)
+  (*   central (belongs_to_block α b) *)
+  (*           (fun ν => (ν,f) ∈ γ_block α b). *)
+  (* Proof. *)
+  (*   unfold central. intros β δ hβ hδ ν. revert f. *)
+  (*   induction b as [ | p b hb ]; intros f h₁. *)
+  (*   - (* b = [] *) *)
+  (*     unfold γ_block in *; simpl in *. *)
+  (*     unfold empty in *; simpl in *. *)
+  (*     assumption. *)
+  (*   - (* b = p::b *) *)
+  (*     unfold γ_block in h₁ |- *. *)
+  (*     rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ]. *)
+  (*     rewrite list_map_cons,(list_reduce_cons eq) in h₁; [ | typeclasses eauto .. ]. *)
+  (*     destruct h₁ as [ [ ν₁ f₁ ] [ [ ν₂ f₂ ] [ h₂ [ h₃ [ h₄ h₅ ]]]]]; simpl in h₄,h₅. *)
+  (*     destruct h₄. *)
+  (*     exists (Valuation.swap β δ ν₁,f₁); exists (Valuation.swap β δ ν₁,f₂). *)
+  (*     decompose_concl. *)
+  (*     + apply valuation_not_fixed_point_to. *)
+  (*       * clear -hβ; unfold belongs_to_block in hβ. *)
+  (*         intros h. *)
+  (*         apply hβ. *)
+  (*         right. *)
+  (*         rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ]. *)
+  (*         now left. *)
+  (*       * clear -hδ; unfold belongs_to_block in hδ. *)
+  (*         intros h. *)
+  (*         apply hδ. *)
+  (*         right. *)
+  (*         rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ]. *)
+  (*         now left. *)
+  (*       * assumption. *)
+  (*     + apply hb. *)
+  (*       * clear -hβ; unfold belongs_to_block in hβ. *)
+  (*         intros h. *)
+  (*         apply hβ. *)
+  (*         destruct h. *)
+  (*         { now left. } *)
+  (*         right. *)
+  (*         rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ]. *)
+  (*         now right. *)
+  (*       * clear -hδ; unfold belongs_to_block in hδ. *)
+  (*         intros h. *)
+  (*         apply hδ. *)
+  (*         destruct h. *)
+  (*         { now left. } *)
+  (*         right. *)
+  (*         rewrite list_map_cons,(list_reduce_cons eq); [ | typeclasses eauto .. ]. *)
+  (*         now right. *)
+  (*       * apply h₃. *)
+  (*     + split; simpl. *)
+  (*       { constructor. } *)
+  (*       assumption. *)
+  (* Qed. *)
 
   (** spiwack: in a more general setting, summaries should control
       some nodes.  It would come as an extra piece of data of type
@@ -420,9 +496,9 @@ Section Graph.
     fun δ => δ = α
   .
 
-  Hypothesis valuation_not_fixed_summary : forall α sm f,
-    central (belongs_to_summary α sm)
-            (fun ν => (ν,f) ∈ γ_summary sm α).
+  (* Hypothesis valuation_not_fixed_summary : forall α sm f, *)
+  (*   central (belongs_to_summary α sm) *)
+  (*           (fun ν => (ν,f) ∈ γ_summary sm α). *)
 
   Definition belongs_to_edge α e : ℘ node :=
     match e with
@@ -431,20 +507,20 @@ Section Graph.
     end
   .
   
-  Lemma valuation_not_fixed_edge α e f :
-    central (belongs_to_edge α e)
-            (fun ν => (ν,f) ∈ γ_edge α e).
-  Proof.
-    unfold central. intros β δ hβ hδ ν h₁.
-    unfold γ_edge.
-    destruct e as [ b | sm ].
-    + (* e = Point_to b *)
-      simpl in h₁.
-      apply valuation_not_fixed_block; eauto.
-    + (* e = Summarized sm *)
-      simpl in h₁.
-      apply valuation_not_fixed_summary; eauto.
-  Qed.
+  (* Lemma valuation_not_fixed_edge α e f : *)
+  (*   central (belongs_to_edge α e) *)
+  (*           (fun ν => (ν,f) ∈ γ_edge α e). *)
+  (* Proof. *)
+  (*   unfold central. intros β δ hβ hδ ν h₁. *)
+  (*   unfold γ_edge. *)
+  (*   destruct e as [ b | sm ]. *)
+  (*   + (* e = Point_to b *) *)
+  (*     simpl in h₁. *)
+  (*     apply valuation_not_fixed_block; eauto. *)
+  (*   + (* e = Summarized sm *) *)
+  (*     simpl in h₁. *)
+  (*     apply valuation_not_fixed_summary; eauto. *)
+  (* Qed. *)
 
   Definition belongs_to_graph (g:t) : ℘ node :=
     ptree_map_reduce belongs_to_edge union ∅ g
@@ -477,96 +553,96 @@ Section Graph.
       assert (equiv g (NodeTree.set α e g')) as h₂.
       { apply equiv_alt; intros δ.
         unfold g'; clear g'.
-        ptree_simplify; congruence. }
+        CPTree.simplify; congruence. }
       intros h₃.
       erewrite belongs_to_graph_equiv'; [|eauto..].
       unfold belongs_to_graph in *.
       rewrite ptree_set_map_reduce; [|typeclasses eauto..|].
       * now right.
       * unfold g' in *; clear g'.
-        ptree_simplify; congruence.
+        CPTree.simplify; congruence.
     + (* g!α = None *)
       rewrite belongs_to_graph_equiv'; eauto.
       apply equiv_alt; intros δ.
-      ptree_simplify; congruence.
+      CPTree.simplify; congruence.
   Qed.
 
-  Theorem valuation_not_fixed (g:t) f :
-    central (belongs_to_graph g)
-            (fun ν => (ν,f) ∈ γ g).
-  Proof.
-    revert f; unfold γ; unfold ptree_map_reduce.
-    apply PTree_Properties.fold_rec.
-    { intros g₁ g₂ P g₁_g₂ h₂ f α β h₃ h₄ ν' h₅.
-      apply equiv_alt in g₁_g₂.
-      eapply h₂; clear h₂.
-      + intros h; apply h₃.
-        now apply belongs_to_graph_equiv in g₁_g₂; rewrite <- g₁_g₂.
-      + intros h; apply h₄.
-        now apply belongs_to_graph_equiv in g₁_g₂; rewrite <- g₁_g₂.
-      + assumption. }
-    { intros f α β hα hβ ν h.
-      unfold empty; simpl.
-      unfold empty in h; simpl in h.
-      assumption. }
-    intros g' P α e h₁ h₂ h f β δ hβ hδ ν h₃.
-    destruct h₃ as [ [ ν₁ f₁ ] [ [ ν₂ f₂ ] [ h₃₁ [ h₃₂ [ h₃₃ h₃₄ ]]]]]; simpl in h₃₃,h₃₄.
-    destruct h₃₃.
-    exists (swap β δ ν₁,f₁); exists (swap β δ ν₁,f₂).
-    decompose_concl.
-    + apply h.
-      * clear -h₁ hβ.
-        intros h; apply hβ.
-        unfold belongs_to_graph.
-        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
-        now right.
-      * clear -h₁ hδ.
-        intros h; apply hδ.
-        unfold belongs_to_graph.
-        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
-        now right.
-      * assumption.
-    + apply valuation_not_fixed_edge.
-      * clear -h₁ hβ.
-        intros h; apply hβ.
-        unfold belongs_to_graph.
-        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
-        now left.
-      * clear -h₁ hδ.
-        intros h; apply hδ.
-        unfold belongs_to_graph.
-        rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy].
-        now left.
-      * assumption.
-    + constructor; simpl.
-      * constructor.
-      * assumption.
-  Qed.
+  (* Theorem valuation_not_fixed (g:t) f : *)
+  (*   central (belongs_to_graph g) *)
+  (*           (fun ν => (ν,f) ∈ γ g). *)
+  (* Proof. *)
+  (*   revert f; unfold γ; unfold ptree_map_reduce. *)
+  (*   apply AtomTree_Properties.fold_rec. *)
+  (*   { intros g₁ g₂ P g₁_g₂ h₂ f α β h₃ h₄ ν' h₅. *)
+  (*     apply equiv_alt in g₁_g₂. *)
+  (*     eapply h₂; clear h₂. *)
+  (*     + intros h; apply h₃. *)
+  (*       now apply belongs_to_graph_equiv in g₁_g₂; rewrite <- g₁_g₂. *)
+  (*     + intros h; apply h₄. *)
+  (*       now apply belongs_to_graph_equiv in g₁_g₂; rewrite <- g₁_g₂. *)
+  (*     + assumption. } *)
+  (*   { intros f α β hα hβ ν h. *)
+  (*     unfold empty; simpl. *)
+  (*     unfold empty in h; simpl in h. *)
+  (*     assumption. } *)
+  (*   intros g' P α e h₁ h₂ h f β δ hβ hδ ν h₃. *)
+  (*   destruct h₃ as [ [ ν₁ f₁ ] [ [ ν₂ f₂ ] [ h₃₁ [ h₃₂ [ h₃₃ h₃₄ ]]]]]; simpl in h₃₃,h₃₄. *)
+  (*   destruct h₃₃. *)
+  (*   exists (Valuation.swap β δ ν₁,f₁); exists (Valuation.swap β δ ν₁,f₂). *)
+  (*   decompose_concl. *)
+  (*   + apply h. *)
+  (*     * clear -h₁ hβ. *)
+  (*       intros h; apply hβ. *)
+  (*       unfold belongs_to_graph. *)
+  (*       rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy]. *)
+  (*       now right. *)
+  (*     * clear -h₁ hδ. *)
+  (*       intros h; apply hδ. *)
+  (*       unfold belongs_to_graph. *)
+  (*       rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy]. *)
+  (*       now right. *)
+  (*     * assumption. *)
+  (*   + apply valuation_not_fixed_edge. *)
+  (*     * clear -h₁ hβ. *)
+  (*       intros h; apply hβ. *)
+  (*       unfold belongs_to_graph. *)
+  (*       rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy]. *)
+  (*       now left. *)
+  (*     * clear -h₁ hδ. *)
+  (*       intros h; apply hδ. *)
+  (*       unfold belongs_to_graph. *)
+  (*       rewrite ptree_set_map_reduce; [|typeclasses eauto..|easy]. *)
+  (*       now left. *)
+  (*     * assumption. *)
+  (*   + constructor; simpl. *)
+  (*     * constructor. *)
+  (*     * assumption. *)
+  (* Qed. *)
 
-  Corollary valuation_not_fixed_iter (g:t) :
-    forall (p:permutation), permutation_not_in p (belongs_to_graph g) ->
-    forall ν f, (ν,f) ∈ γ g -> (p@ν,f) ∈ γ g.
-  Proof.
-    intros **.
-    apply central_permutation with (belongs_to_graph g).
-    + apply valuation_not_fixed.
-    + assumption.
-    + assumption.
-  Qed.
+  (* Corollary valuation_not_fixed_iter (g:t) : *)
+  (*   forall (p:permutation), permutation_not_in p (belongs_to_graph g) -> *)
+  (*   forall ν f, (ν,f) ∈ γ g -> (p@ν,f) ∈ γ g. *)
+  (* Proof. *)
+  (*   intros **. *)
+  (*   apply central_permutation with (belongs_to_graph g). *)
+  (*   + apply valuation_not_fixed. *)
+  (*   + assumption. *)
+  (*   + assumption. *)
+  (* Qed. *)
 
   Lemma domain_belongs g :
     forall α e, g!α = Some e ->
     α ∈ belongs_to_graph g.
   Proof.
     unfold belongs_to_graph, belongs_to_graph, ptree_map_reduce.
-    apply PTree_Properties.fold_rec.
+    apply AtomTree_Properties.fold_rec.
     { intros g₁ g₂ P h₁ h₂ α e h₃.
       apply h₂ with e.
       now rewrite h₁. }
     { intros ** h.
-      ptree_simplify; congruence. }
+      CPTree.simplify; congruence. }
     intros g₁ P α e h₁ h₂ h₃ β e' h₄.
-    ptree_simplify.
+    CPTree.simplify.
     - right.
       destruct e; simpl.
       + unfold belongs_to_block.
