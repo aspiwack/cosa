@@ -99,7 +99,25 @@ Ltac prove_hyp h :=
   end
 .
 
+(** Tries to unify [h] with the goal, generates equality proof
+    obligation when it fails. *)
+Ltac apply_eq h :=
+  lazymatch goal with
+  |- ?c => let c' := type of h in replace c with c' ; [exact h|]
+  end; f_equal
+.
 
+(** Adds an new [Hint EResolve] command which forces the hints to be
+    used with [eapply]. *)
+
+Declare ML Module "eresolve" "g_eresolve".
+
+(** Combinators for the combinatorize tactic. *)
+
+Definition id {A} (x:A) : A := x.
+Definition kc {A B} (x:A) : B->A := fun _ => x.
+Definition sc {A B C} (x:A->B->C) (y:A->B) (σ:A) : C := x σ (y σ).
+Definition compc {A B C} (f:B->C) (g:A->B) : A->C := fun x => f (g x).
 
 (** Hints for auto* tactics **)
 Hint Unfold Morphisms.Proper Morphisms.respectful.

@@ -1,4 +1,8 @@
 -R . Cosa
+-I ./Plugins
+./Plugins/combinatorize.ml
+./Plugins/eresolve.ml
+./Plugins/g_eresolve.ml4
 ./Lib/Bracket.v
 ./Lib/Finite.v
 ./Lib/CompleteLattice.v
@@ -14,7 +18,6 @@
 ./Abstract/Lang.v
 ./Abstract/NumericalDomain.v
 ./Abstract/Valuation.v
-./Analysis/Inductives.v
 ./Concrete/ConcreteFragment.v
 ./Shape/Summary.v
 ./Shape/Inclusion.v

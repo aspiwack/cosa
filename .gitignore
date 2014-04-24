@@ -3,3 +3,13 @@
 # files produced by Coq
 *.glob
 *.vo
+*.v.d
+Makefile.bak
+# files produces by OCaml
+*.cmi
+*.cmo
+*.cmx
+*.cmxs
+*.ml.d
+*.ml4.d
+*.o

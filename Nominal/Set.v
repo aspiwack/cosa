@@ -27,11 +27,35 @@ Existing Instance act_proper.
 
 (** Properties about actions *)
 
+Lemma act_op_act A `(Action A) : forall π (x:A), (op_p π)·(π·x) = x.
+Proof.
+  intros.
+  now rewrite <- act_comp, op_p_spec_l, act_id.
+Qed.
+
+Lemma act_act_op A `(Action A) : forall π (x:A), π·((op_p π)·x) = x.
+Proof.
+  intros.
+  now rewrite <- act_comp, op_p_spec_r, act_id.
+Qed.
+
+Hint Rewrite @act_id @act_comp @act_op_act @act_act_op : actions.
+Hint Rewrite @op_p_involutive @op_p_comp : actions.
+
+Ltac simplify_act := autorewrite with actions in *.
+Ltac eager_ext :=
+  try lazymatch goal with
+  | |- @eq (_ -> _) _ _ => let x:=fresh in extensionality x
+  end
+.
+Ltac narrow_act := repeat (simplify_act;eager_ext).
+Ltac solve_act := intros **;narrow_act;solve[crush|easy|congruence].
+
 Lemma act_injective π A `(Action A) : forall x y, π·x=π·y -> x=y.
 Proof.
   intros x y h.
   apply (f_equal (act (op_p π))) in h.
-  now rewrite <-!act_comp, !op_p_spec_l,!act_id in h.
+  solve_act.
 Qed.
 
 Lemma act_float_l π A `(Action A) : forall x y, (op_p π)·x = y <-> x = π·y.
@@ -39,15 +63,14 @@ Proof.
   assert (forall π' x y, (op_p π')·x = y -> x = π'·y) as h.
   { intros π' x y h.
     eapply (act_injective (op_p π')).
-    now rewrite <-!act_comp, !op_p_spec_l,!act_id. }
+    solve_act. }
   intros x y.
   split.
   + auto.
   + intros hx.
     symmetry.
     apply h.
-    rewrite op_p_involutive.
-    congruence.
+    solve_act.
 Qed.
 
 Lemma act_float_r π A `(Action A) : forall x y, x = (op_p π)·y <-> π·x = y.
@@ -100,10 +123,7 @@ Next Obligation.
   now rewrite !act_id.
 Qed.
 Next Obligation.
-  revert x. (* should not be introduced *)
-  intros f.
-  extensionality x.
-  now rewrite <-!act_comp, op_p_comp.
+  solve_act.
 Qed.
 
 (** The particular case of predicate has a simple characterisation. *)
@@ -142,22 +162,21 @@ Proof.
     apply AtomTree.unicity in h₁.
     now rewrite <- h₁. }
   + intros **.
-    rewrite !AtomTree.gempty.
+    AtomTree.simplify.
     firstorder congruence.
   + intros m₁ m₂ a v h₁ h₂ h₃ a' v'.
     destruct (Pos.eq_dec a' (π·a)) as [ -> | ha ].
     * rewrite <- !act_comp, !op_p_spec_l, !act_id.
-      rewrite !AtomTree.gss.
+      AtomTree.simplify.
       split.
       - intros hv; injection hv; clear hv; intros <-.
-        now rewrite <- !act_comp, !op_p_spec_l, !act_id.
+        solve_act.
       - intros hv; injection hv; clear hv; intros ->.
-        now rewrite <- !act_comp, !op_p_spec_r, !act_id.
+        solve_act.
     * rewrite !AtomTree.gso.
       { easy. }
       - intros <-.
-        rewrite <- !act_comp, !op_p_spec_r, !act_id in ha.
-        congruence.
+        solve_act.
       - easy.
 Qed.
 
@@ -175,8 +194,7 @@ Next Obligation.
   unfold map_action_f.
   rewrite <- AtomTree_Properties.fold_add_self.
   f_equal.
-  extensionality m'; extensionality a; extensionality x'.
-  now rewrite !act_id.
+  solve_act.
 Qed.
 Next Obligation.
   apply AtomTree.unicity. intros a.
@@ -188,7 +206,7 @@ Next Obligation.
     easy. }
   apply rem. intros v.
   rewrite !map_action_f_alt.
-  now rewrite !op_p_comp, !act_comp.
+  solve_act.
 Qed.
 
 Corollary map_action_alt A `(Action A) π (m:AtomTree.t A) :
@@ -204,7 +222,7 @@ Corollary map_action_alt_float A `(Action A) π (m:AtomTree.t A) :
 Proof.
   intros **.
   rewrite map_action_alt.
-  now rewrite <- !act_comp, !op_p_spec_l, !act_id.
+  solve_act.
 Qed.
 
 (** Actions can be extended to products and sums by acting
@@ -219,10 +237,10 @@ Next Obligation.
   reflexivity.
 Qed.
 Next Obligation.
-  now rewrite !act_id.
+  solve_act.
 Qed.
 Next Obligation.
-  now rewrite !act_comp.
+  solve_act.
 Qed.
 
 Program Instance sum_action A B `(Action A) `(Action B): Action (A+B) := {|
@@ -234,11 +252,11 @@ Next Obligation.
 Qed.
 Next Obligation.
   revert x. (* should not have been introduced *)
-  intros [a|b]; rewrite act_id; easy.
+  intros [a|b]; solve_act.
 Qed.
 Next Obligation.
   revert x. (* should not have been introduced *)
-  intros [a|b]; rewrite act_comp; easy.
+  intros [a|b]; solve_act.
 Qed.
 
 (** These actions form sum and product generalise to arbitrary
@@ -286,10 +304,10 @@ Next Obligation.
   now rewrite <- hπ.
 Qed.
 Next Obligation.
-  now rewrite act_id.
+  solve_act.
 Qed.
 Next Obligation.
-  now rewrite act_comp, h₂.
+  solve_act.
 Qed.
 
 (** Support *)
@@ -369,28 +387,67 @@ Qed.
 
 (** Equivariant functions *)
 
-(** Function with empty support turn out to be of prime importance
+(** Functions with empty support turn out to be of prime importance
     indeed they are the functions which preserve the group action
     (they are called equivariant functions). They are the morphism of
     the category of Perm-sets (sets equipped with an action as above)
     and of the category of nominal sets which is defined below. *)
-Definition Equivariant {A} `{Action A} {B} `{Action B} (f:A->B) :=
-  forall π x, f(π·x) = π·(f x)
+
+(** We define [Equivariant] at every type, instead than just
+    functions, it's more uniform and will help for automated
+    proofs. *)
+Definition Equivariant {A} `{Action A} (x:A) :=
+  support AtomSet.empty x
 .
 
-Lemma equivariant_alt A `(Action A) B `(Action B) (f:A->B) : Equivariant f <-> support AtomSet.empty f.
+Lemma equivariant_alt₁ A `(Action A) B `(Action B) (f:A->B) : Equivariant f <-> forall π x, f (π·x) = π·(f x).
 Proof.
   unfold Equivariant, support. simpl.
   split.
+  + intros h π a.
+    apply act_float_l.
+    pattern f at 2.
+    rewrite <- (h (op_p π)); [| intros **; AtomSet.fsetdec'].
+    solve_act.
   + intros h π _.
-    extensionality x.
+    extensionality a.
     rewrite h.
-    now rewrite <- act_comp, op_p_spec_r, act_id.
-  + intros h π x.
-    pattern f at 1. rewrite <- (h π).
-    * now rewrite <- act_comp, op_p_spec_l, act_id.
-    * intros a c.
-      AtomSet.fsetdec'.
+    solve_act.
+Qed.
+
+Corollary equivariant_rew A `(Action A) B `(Action B) (f:A->B) : Equivariant f -> forall π x, f (π·x) = π·(f x).
+Proof.
+  apply equivariant_alt₁.
+Qed.
+
+Lemma equivariant_alt₂ A `(Action A) B `(Action B) C `(Action C) (f:A->B->C) :
+  Equivariant f <-> forall π x y, f (π·x) (π·y) = π·(f x y).
+Proof.
+  split.
+  + rewrite equivariant_alt₁.
+    intros h **.
+    rewrite h. simpl.
+    solve_act.
+  + unfold Equivariant,support.
+    intros h π _.
+    extensionality x; extensionality y. simpl.
+    rewrite h.
+    solve_act.
+Qed.
+
+Lemma equivariant_alt₃ A `(Action A) B `(Action B) C `(Action C) D `(Action D) (f:A->B->C->D) :
+  Equivariant f <-> forall π x y z, f (π·x) (π·y) (π·z) = π·(f x y z).
+Proof.
+  split.
+  + rewrite equivariant_alt₁.
+    intros h **.
+    rewrite h. simpl.
+    solve_act.
+  + unfold Equivariant,support.
+    intros h π _.
+    extensionality x; extensionality y; extensionality z. simpl.
+    rewrite h.
+    solve_act.
 Qed.
 
 (** The very important property of equivariant functions is that they
@@ -399,7 +456,7 @@ Theorem equivariant_preserve_support A `(Action A) B `(Action B) (f:A->B) :
   Equivariant f -> forall x w, support w x -> support w (f x)
 .
 Proof.
-  unfold Equivariant,support.
+  rewrite equivariant_alt₁. unfold support.
   intros h x w hsupp π hfix.
   now rewrite <- h, hsupp.
 Qed.
@@ -411,12 +468,126 @@ Theorem equivariant_inj_reflect_support A `(Action A) B `(Action B) (f:A->B) :
   Equivariant f -> (forall x y, f x = f y -> x =y) ->
   forall x w, support w (f x) -> support w x.
 Proof.
-  unfold Equivariant, support.
+  rewrite equivariant_alt₁. unfold support.
   intros h inj x w hsupp π hfix.
   apply inj.
   rewrite h.
   auto.
 Qed.
+
+(** Combinators and applications for automated propagation of the
+    equivariant property. *)
+Create HintDb equivariant discriminated.
+
+Lemma equivariant_app A `(Action A) B `(Action B) (f:A->B) (x:A) :
+  Equivariant f -> Equivariant x -> Equivariant (f x).
+Proof.
+  intros hf hx.
+  unfold Equivariant in hx|-*.
+  eapply equivariant_preserve_support; assumption.
+Qed.
+
+
+Lemma equivariant_id A `(Action A) : Equivariant (@Tactics.id A).
+Proof.
+  unfold Equivariant,support,Tactics.id. simpl.
+  solve_act.
+Qed.
+Hint EResolve equivariant_id : equivariant.
+
+Lemma equivariant_comp A `(Action A) B `(Action B) C `(Action C) :
+  Equivariant (@compc A B C).
+Proof.
+  apply equivariant_alt₂. unfold compc.
+  intros π f g.
+  extensionality x. unfold comp. simpl.
+  solve_act.
+Qed.
+Hint EResolve equivariant_comp : equivariant.
+
+Lemma equivariant_k A `(Action A) B `(Action B) : Equivariant (@kc A B).
+Proof.
+  unfold Equivariant,support,kc. simpl.
+  solve_act.
+Qed.
+Hint EResolve equivariant_k : equivariant.
+
+Lemma equivariant_s A `(Action A) B `(Action B) C `(Action C) : Equivariant (@sc A B C).
+Proof.
+  unfold Equivariant,support,sc. simpl.
+  solve_act.
+Qed.
+Hint EResolve equivariant_s : equivariant.
+
+(* prepare_narrow_equivariant is set later to avoid bad interaction
+   with the typeclass inference mechanism. Maybe a better way would be
+   using [Hint Unfold] but I haven't figured a way to succeed with
+   that. *)
+Ltac prepare_narrow_equivariant := idtac.
+(* spiwack: is there a way to just make a call to eauto? *)
+Ltac narrow_equivariant :=
+  repeat (solve[prepare_narrow_equivariant;eauto with equivariant]||eapply equivariant_app)
+.
+
+Lemma equivariant_pair A `(Action A) B `(Action B) : Equivariant (@Datatypes.pair A B).
+Proof.
+  apply equivariant_alt₂. simpl.
+  easy.
+Qed.
+Hint EResolve equivariant_pair : equivariant.
+
+Lemma equivariant_fst A `(Action A) B `(Action B) : Equivariant (@fst A B).
+Proof.
+  apply equivariant_alt₁. simpl.
+  easy.
+Qed.
+Hint EResolve equivariant_fst : equivariant.
+
+Lemma equivariant_snd A `(Action A) B `(Action B) : Equivariant (@snd A B).
+Proof.
+  apply equivariant_alt₁. simpl.
+  easy.
+Qed.
+Hint EResolve equivariant_snd : equivariant.
+
+(* spiwack: there is a duplicate of [comp] for some reason. I should
+   probably clean this up.  *)
+Lemma equivariant_comp' A `(Action A) B `(Action B) C `(Action C) :
+  Equivariant (@comp A B C).
+Proof.
+  apply equivariant_alt₂.
+  intros π f g.
+  extensionality x. unfold comp. simpl.
+  solve_act.
+Qed.
+Hint EResolve equivariant_comp' : equivariant.
+
+Lemma equivariant_map A `(Action A) B `(Action B) : Equivariant (@List.map A B).
+Proof.
+  apply equivariant_alt₂.
+  intros π f l.
+  induction l as [ | x l h ].
+  + easy.
+  + change (π·(x::l)) with ((π·x)::(π·l)).
+    rewrite !list_map_cons.
+    rewrite h.
+    simpl.
+    solve_act.
+Qed.
+Hint EResolve equivariant_map : equivariant.
+
+Definition swap_args {A B C:Type} (f:A->B->C) : B->A->C :=
+  fun y x => f x y
+.
+
+Lemma swap_args_equivariant A `(Action A) B `(Action B) C `(Action C) :
+  Equivariant (@swap_args A B C).
+Proof.
+  apply equivariant_alt₃.
+  intros π f x y. unfold swap_args. simpl.
+  solve_act.
+Qed.
+Hint EResolve swap_args_equivariant : equivariant.
 
 (** Nominal sets *)
 
@@ -427,6 +598,8 @@ Class Nominal (A:Type) := {
   has_action :> Action A ;
   supported : forall x:A, exists w, support w x
 }.
+
+Ltac prepare_narrow_equivariant ::= simpl has_action.
 
 (** Common nominal sets *)
 
@@ -595,44 +768,19 @@ Program Instance fsfun_nominal A `(Action A) B `(Action B) : Nominal (FSFun A B)
 (** An example of finitely supported function is the predicate
     generated by the elements in a list: [List.In], since [List.In] is
     equivariant. *)
-Lemma In_equivariant A `(Nominal A) : Equivariant (@List.In A).
+Lemma In_equivariant A `(Action A) : Equivariant (@List.In A).
 Proof.
-  unfold Equivariant.
-  intros π x. extensionality l.
+  apply equivariant_alt₂.
+  intros π x l.
   simpl.
   induction l as [ | y l hl ].
   + easy.
   + simpl.
     apply prop_extensionality.
-    rewrite <- hl.
-    now rewrite act_float_l.
+    rewrite hl.
+    firstorder (eauto using act_injective;congruence).
 Qed.
-
-(* arnaud: deplacer a la definition de equivariant. *)
-Definition swap_args {A B C:Type} (f:A->B->C) : B->A->C :=
-  fun y x => f x y
-.
-
-(* arnaud: deplacer a la definition de equivariant. *)
-Lemma swap_args_equivariant A `(Action A) B `(Action B) C `(Action C) :
-  Equivariant (@swap_args A B C).
-Proof.
-  unfold Equivariant.
-  intros π f. unfold swap_args. simpl.
-  extensionality y. extensionality x.
-  easy.
-Qed.
-
-(* arnaud: deplacer a la definition de equivariant. *)
-Lemma equivariant_swap_args A `(Action A) B `(Action B) C `(Action C) (f:A->B->C) :
-  Equivariant f -> Equivariant (swap_args f).
-Proof.
-  rewrite !equivariant_alt.
-  intros h.
-  eapply equivariant_preserve_support.
-  { apply swap_args_equivariant. }
-  assumption.
-Qed.
+Hint EResolve In_equivariant.
 
 Program Definition In_fs {A} `{Nominal A} (l:list A) : A-fs->Prop :=
   fun x => List.In x l
@@ -640,22 +788,19 @@ Program Definition In_fs {A} `{Nominal A} (l:list A) : A-fs->Prop :=
 Next Obligation.
   destruct (supported l) as [w hw].
   exists w.
-  apply (equivariant_preserve_support _ _ _ _ (fun l x => List.In x l)).
-  { apply equivariant_swap_args.
-    apply In_equivariant. }
+  apply (equivariant_preserve_support _ _ _ _ (swap_args (@List.In A))).
+  { narrow_equivariant. }
   assumption.
 Qed.
 
 Lemma In_fs_equivariant A `(Nominal A) : Equivariant In_fs.
 Proof.
-  unfold Equivariant.
-  intros π l. apply fs_extensionality. simpl.
+  apply equivariant_alt₁.
+  intros π l.
+  apply fs_extensionality. simpl.
   extensionality x.
-  generalize (In_equivariant A _); intros h.
-  unfold Equivariant in h. simpl in h.
-  rewrite h.
-  rewrite op_p_involutive.
-  reflexivity.
+  erewrite equivariant_rew; [|narrow_equivariant]. simpl.
+  solve_act.
 Qed.
 
 (** Finite maps are, by definition, finitely supported. *)
@@ -671,7 +816,8 @@ Proof.
     { intros **.
       split; (apply AtomTree.elements_correct ||
               apply AtomTree.elements_complete). }
-  unfold Equivariant, tree_get_fs.
+  rewrite equivariant_alt₁.
+  unfold tree_get_fs.
   intros π m. apply fs_extensionality. simpl.
   extensionality ax. destruct ax as [a x]. simpl.
   apply prop_extensionality.
