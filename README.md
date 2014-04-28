@@ -31,6 +31,8 @@ Design
 
 On the concrete side, Cosa uses [Compcert](http://compcert.inria.fr/). The code is meant to interface with the value analysis described [here](http://link.springer.com/chapter/10.1007/978-3-642-38856-9_18). As such it will analyse the control-flow graph language which was designed as part of this analysis, and closely corresponds to Compcert's Cminor intermediate language. Currently Cosa doesn't use code from the value analysis (whose up to date version, developed for the [Verasco](http://verasco.imag.fr/wiki/Main_Page) project, hasn't been released yet).
 
+### Interaction structures ###
+
 Xisa is design as rule-sets which can be applied with any strategy. The correctness of the analysis does not depend on the chosen strategy. To represent rule-sets, Cosa uses _Interaction Structures_ introduced by Peter Hancock (see [_Programming interfaces and basic topology_](http://www.sciencedirect.com/science/article/pii/S0168007205000710) by Peter Hancock and Pierre Hyvernat for an overview).
 
 Interaction structures represent processes which involve the interaction of two agents. In the case of Cosa, we can see the agent as the strategy (or _oracle_) and a provider of rules concerned by correctness. Interaction structures support forward refinement — as in [refinement calculus](http://en.wikipedia.org/wiki/Refinement_calculus) — which Arnaud Spiwack noticed is sufficient to encode the abstract interpretation framework in which Xisa is expressed (unpublished).
@@ -43,11 +45,21 @@ Interaction structures can also be used to represent proof systems. We use that 
 
 Working with interaction structure is the main structuring choice of Cosa. It allows to describe the interaction with an external oracle in a systematic way, and allows to delay the calls to an actual oracle to a superficial layer completely separated from the correctness proof. The data structures manipulated by the algorithm do not need to be used in the correctness proofs either.
 
+### Nominal sets ###
+
+Summarised edges in a Xisa graph represent inductive shapes. Throughout an analysis they are unfolded (for instance a list at address `α` will be unfolded as the disjunction of `α=0` and `α.0=β`m `α.1=γ` for some value `β` and a list at address `γ`). This procedure of unfolding creates new names.
+
+The correctness property of the concretisation asserts that we can always _fold back_ an edge, thus removing names. Creating new names is not justified directly by the usual properties of abstract interpretation.
+
+To address this issue, Cosa uses a technology based on Andrew Pitts's _nominal sets_ (see [_Nominal Sets_ (course notes)](http://www.cs.nott.ac.uk/~vxc/mgs/MGS2011_nominal_sets.pdf). One way to see Xisa graph, from the point of view of unfolding, is a structure with an infinite amount of implicit binders. Nominal set handle infinite amounts of binders gracefully, which is not the case of other representations of binders.
+
+The basic idea of nominal set is to consider a set of names (a.k.a. _atoms_), and the finite permutations of atoms. Permutations of atoms act on sets as a group. With such an action it is possible to define usual notions like α-equivalence and freshness. But more importantly for Cosa, it comes with a _composable_ notion of functions which do not create names (namely the _equivariant functions_, _i.e._ those functions which preserve the action of the finite permutations of atoms).
+
 
 Overview
 --------
 
-Cosa is currently being developed, it does not provide a full-fledged analysis yet. However, it proves correct a significant proportion of the Xisa domain. Here is a description of the directories and Coq files involved in the proofs:
+Cosa is currently being developed, it does not provide a full-fledged analysis yet. However, it proves correct a significant proportion of the Xisa domain. Some parts of the development are being rewritten so some of the files will not compile at the moment. Here is a description of the directories and Coq files involved in the proofs:
 
 ### Lib ###
 
@@ -75,6 +87,13 @@ In the `Interaction` directory, one can find everything pertaining specifically 
     + An interaction structure `deductive` where only the applicable rules can be used, and which is well-suited to show what is proven by the proofs of this rule system.
     + An interaction structure `checker` where using inapplicable rules is permitted by the type checker, but leads to a junk state. It comes with a generic notion of certificate: a regular (non-dependent) datatype which can be read back as a proof of `checker`.
 * `InteractionLib.v` describes interaction structures which do not fit in the core files.
+
+### Nominal ###
+
+The `Nominal` directory defines the primitives for the nominal set technology which is used to ensure the correctness of unfolding. Most everything in the `Nominal` directory is defined as type classes.
+
+* `Atom.v` defines the basic properties of nominal atoms and permutations. The most important is the data of a type of finite decidable sets of atoms (which we arrange to be up to equality).
+* `Set.v` defines the basic logic of nominal sets. A typeclass `Action` is defined to represent the sets on which finite permutations of atoms act as a group. A typeclass `Nominal` is then defined to represent nominal sets (in addition to the action each element has a (decidable) finite support). This file also defines the notion of equivariant functions (morphisms of the category of nominal sets) and some automatin to infer that a function is, indeed, equivariant.
 
 ### Concrete ###
 
