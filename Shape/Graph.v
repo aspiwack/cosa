@@ -248,7 +248,6 @@ Section Graph.
 
   Context {summary:Type} (γ_summary : summary -> node -> ℘ conc).
   Context {summary_nominal:Nominal summary} (equivariant_γ_summary : Equivariant γ_summary).
-  Existing Instance summary_nominal.
   Hint EResolve equivariant_γ_summary : equivariant.
   
 
@@ -287,7 +286,7 @@ Section Graph.
 
   Definition t := NodeTree.t edge.
 
-  Instance graph_nominal : Nominal t := Nominal.Set.map_nominal _ _.
+  Global Instance graph_nominal : Nominal t := Nominal.Set.map_nominal _ _.
 
   Definition equiv : t -> t -> Prop := AtomTree_Properties.Equal (eqA:=eq) _.
 
@@ -914,6 +913,7 @@ Section Graph.
 End Graph.
 
 Arguments t summary : clear implicits.
+Hint EResolve @γ_equivariant : equivariant.
 
 
 (** the concretisation are increasing with respect to the concretisation of summarized
