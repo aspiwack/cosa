@@ -14,11 +14,6 @@ Require Import Cosa.Nominal.Set.
     They are to be paired with a numerical domain to make a complete
     abstract domain. *)
 
-(** [Nominal] Instances for Compcert types (all discrete, of
-    course). *)
-
-Instance chunk_nominal : Nominal AST.memory_chunk := discrete_nominal.
-
 (** Basic types *)
 
 (** Types of the nodes of the graph. *)
@@ -39,8 +34,6 @@ Instance offs_nominal : Nominal offs := discrete_nominal.
 
 (** Representation of pointers in the abstract graph. *)
 Definition off_node := (node * offs)%type.
-
-Instance val_nominal : Nominal val := discrete_nominal.
 
 (** Spiwack: I'm really not sure it matters wether valuation are
     finitely supported or not.  Concretely a finitely supported
