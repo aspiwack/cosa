@@ -10,7 +10,6 @@
 ./Lib/Predicate.v
 ./Lib/Relation.v
 ./Lib/Axioms.v
-./Lib/.#Tactics.v
 ./Lib/Tactics.v
 ./Lib/Algebra.v
 ./Lib/MapReduce.v
