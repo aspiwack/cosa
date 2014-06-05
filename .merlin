@@ -1,0 +1,18 @@
+# This merlin file does not quite work yet
+S Plugins
+B Plugins
+
+# Locates Coq's library. Fragile.
+B /usr/local/lib/coq/config
+B /usr/local/lib/coq/ide
+B /usr/local/lib/coq/interp
+B /usr/local/lib/coq/kernel
+B /usr/local/lib/coq/lib
+B /usr/local/lib/coq/library
+B /usr/local/lib/coq/parsing
+B /usr/local/lib/coq/plugins
+B /usr/local/lib/coq/pretyping
+B /usr/local/lib/coq/proofs
+B /usr/local/lib/coq/states
+B /usr/local/lib/coq/tactics
+B /usr/local/lib/coq/toplevel
