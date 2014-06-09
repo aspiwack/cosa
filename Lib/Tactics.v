@@ -118,6 +118,9 @@ Definition id {A} (x:A) : A := x.
 Definition kc {A B} (x:A) : B->A := fun _ => x.
 Definition sc {A B C} (x:A->B->C) (y:A->B) (σ:A) : C := x σ (y σ).
 Definition compc {A B C} (f:B->C) (g:A->B) : A->C := fun x => f (g x).
+Definition swapc {A B C} (f:A->B->C) (x:B) (y:A) : C := f y x.
+
+
 
 (** Hints for auto* tactics **)
 Hint Unfold Morphisms.Proper Morphisms.respectful.
