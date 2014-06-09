@@ -1,5 +1,7 @@
 Require Import Cosa.Lib.Header.
 Require Import Cosa.Abstract.Valuation.
+Require Import Cosa.Nominal.Set.
+Require Import Cosa.Nominal.CompcertInstances.
 Require Import Coq.Classes.EquivDec.
 Require Cminor.
 
@@ -11,7 +13,7 @@ Require Cminor.
 
 Section Expr.
 
-  Context {var:Type}.
+  Context {var:Type} {nominal_var:Action var}.
 
   Inductive expr :=
   | Avar : var -> expr
@@ -20,6 +22,37 @@ Section Expr.
   | Abinop : Cminor.binary_operation -> expr -> expr -> expr
   | Aload : AST.memory_chunk -> expr -> expr
   .
+
+
+  Global Program Instance action_expr : Action expr := {|
+    act π := (fix act e :=
+      match e return _ with
+      | Avar v => Avar (π·v)
+      | Aconst c => Aconst c
+      | Aunop op e => Aunop op (act e)
+      | Abinop op e₁ e₂ => Abinop op (act e₁) (act e₂)
+      | Aload c e => Aload c (act e)
+      end)
+  |}.
+  Next Obligation.
+    autounfold.
+    intros π₁ π₂ hπ e e' <-.
+    induction e; (congruence||now rewrite hπ).
+  Qed.
+  Next Obligation.
+    (* [x] should not have been introduced *)
+    revert x.
+    (* / *)
+    intros e.
+    induction e; (congruence||now rewrite act_id).
+  Qed.
+  Next Obligation.
+    (* [x] should not have been introduced *)
+    revert x.
+    (* / *)
+    intros e.
+    induction e; (congruence||now rewrite act_comp).
+  Qed.
 
   (** Evaluation is parametrised by an environment for the
       variables. And a read relation for loads.
@@ -62,6 +95,34 @@ End Expr.
 
 Arguments expr var : clear implicits.
 
+Ltac apply_hyps :=
+  repeat match goal with
+  | H:_|-_ => eapply H
+  end
+.
+
+Ltac equivariant_eval_expr_tac :=
+  simpl; intros h; inversion_clear h; econstructor; apply_hyps
+.
+
+Lemma equivariant_eval_expr var `(Action var) : Equivariant (@eval_expr var).
+Proof.
+  apply equivariant_alt₄.
+  intros π env read e v.
+  assert ( forall π env read e v,  eval_expr (π · env) (π · read) (π · e) (π · v) -> eval_expr env read e v ) as h.
+  { clear. intros π env read e.
+    induction e; intros ?; [|equivariant_eval_expr_tac..].
+    intros h; inversion h. simpl in *. simplify_act. subst.
+    econstructor. }
+  apply prop_extensionality.
+  split.
+  + apply h.
+  + intros r.
+    apply (h (op_p π)). simplify_act.
+    exact r.
+Qed.
+Hint EResolve equivariant_eval_expr : equivariant.
+
 Lemma eval_expr_increasing var (env:var->Values.val) :
   forall (reads₁ reads₂:_->_->_->Prop),
   (forall chunk vaddr v, reads₁ chunk vaddr v -> reads₂ chunk vaddr v) ->
@@ -76,14 +137,45 @@ Definition eval_pure_expr {var} env e v :=
   eval_expr (var:=var) env (fun _ _ _ => True) e v
 .
 
+Lemma equivariant_eval_pure_expr var `(Action var) :
+  Equivariant (@eval_pure_expr var).
+Proof.
+  unfold eval_pure_expr.
+  combinatorize.
+  narrow_equivariant.
+  + easy.
+Qed.
+Hint EResolve equivariant_eval_pure_expr : equivariant.
+
+
 (** Pure expressions as assertions. *)
 Definition check_pure_expr {var} env e b :=
   eval_pure_expr (var:=var) env e (Values.Val.of_bool b)
 .
 
+Lemma equivariant_check_pure_expr var `(Action var) :
+  Equivariant (@check_pure_expr var).
+Proof.
+  unfold check_pure_expr.
+  combinatorize.
+  narrow_equivariant.
+  + easy.
+Qed.
+Hint EResolve equivariant_check_pure_expr : equivariant.
+
 Definition valid_pure_expr {var} env e b :=
   check_pure_expr (var:=var) env e b /\ ~(check_pure_expr env e (negb b))
-.   
+.
+
+Lemma equivariant_valid_pure_expr var `(Action var) :
+  Equivariant (@valid_pure_expr var).
+Proof.
+  unfold valid_pure_expr.
+  combinatorize.
+  Time narrow_equivariant; easy.
+  (* 0. secs (0.397935u,0.004047s) in first version *)
+Qed.
+Hint EResolve equivariant_valid_pure_expr : equivariant.
 
 (** Substitution. *)
 Fixpoint subs {A B} (φ:A->B) (e:expr A) : expr B :=
@@ -110,7 +202,7 @@ Fixpoint collect {F} (a:Applicative F) {A} (e:expr (F A)) : F (expr A) :=
 Definition rename {A B} (φ:A->option B) (e:expr A) : option (expr B) :=
   collect Option (subs φ e)
 .
-
+(* arnaud: not needed?
 (* arnaud: belongs_to_expr can actually be defined in term of [collect], using
    the writer applicative and a list. *)
 Fixpoint belongs_to_expr {A} (e:expr A) (x:A) : Prop :=
@@ -172,4 +264,4 @@ Proof.
       now rewrite swap_idempotent. }
     rewrite h₄.
     apply value_not_fixed_check_pure_expr; eauto.
-Qed.
+Qed. *)

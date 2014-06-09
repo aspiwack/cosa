@@ -450,6 +450,41 @@ Proof.
     solve_act.
 Qed.
 
+Lemma equivariant_alt₄ A `(Action A) B `(Action B) C `(Action C) D `(Action D) E `(Action E) (f:A->B->C->D->E) :
+  Equivariant f <->
+  forall π x y z w, f (π·x) (π·y) (π·z) (π·w) = π·(f x y z w).
+Proof.
+  split.
+  + rewrite equivariant_alt₁.
+    intros h **.
+    rewrite h. simpl.
+    solve_act.
+  + unfold Equivariant,support.
+    intros h π _.
+    extensionality x; extensionality y; extensionality z; extensionality w.
+    simpl.
+    rewrite h.
+    solve_act.
+Qed.
+
+Lemma equivariant_alt₅ A `(Action A) B `(Action B) C `(Action C) D `(Action D) E `(Action E) F `(Action F) (f:A->B->C->D->E->F) :
+  Equivariant f <->
+  forall π x y z w u, f (π·x) (π·y) (π·z) (π·w) (π·u) = π·(f x y z w u).
+Proof.
+  split.
+  + rewrite equivariant_alt₁.
+    intros h **.
+    rewrite h. simpl.
+    solve_act.
+  + unfold Equivariant,support.
+    intros h π _.
+    extensionality x; extensionality y;
+      extensionality z; extensionality w; extensionality u. 
+    simpl.
+    rewrite h.
+    solve_act.
+Qed.
+
 (** The very important property of equivariant functions is that they
     preserve supports. *)
 Theorem equivariant_preserve_support A `(Action A) B `(Action B) (f:A->B) :
@@ -519,6 +554,15 @@ Proof.
 Qed.
 Hint EResolve equivariant_s : equivariant.
 
+Lemma equivariant_swap A `(Action A) B `(Action B) C `(Action C) :
+  Equivariant (@swapc A B C).
+Proof.
+  apply equivariant_alt₃.
+  intros π f x y. unfold swapc. simpl.
+  solve_act.
+Qed.
+Hint EResolve equivariant_swap : equivariant.
+
 (* prepare_narrow_equivariant is set later to avoid bad interaction
    with the typeclass inference mechanism. Maybe a better way would be
    using [Hint Unfold] but I haven't figured a way to succeed with
@@ -526,7 +570,8 @@ Hint EResolve equivariant_s : equivariant.
 Ltac prepare_narrow_equivariant := idtac.
 (* spiwack: is there a way to just make a call to eauto? *)
 Ltac narrow_equivariant :=
-  repeat (solve[prepare_narrow_equivariant;eauto with equivariant]||eapply equivariant_app)
+  repeat (solve[eauto with equivariant|
+                (progress prepare_narrow_equivariant);eauto with equivariant]          ||eapply equivariant_app)
 .
 
 Lemma equivariant_pair A `(Action A) B `(Action B) : Equivariant (@Datatypes.pair A B).
@@ -762,6 +807,13 @@ Notation "A '-fs->' B" := (FSFun A B).
 Program Definition fun_of_fs_fun A `{Action A} B `{Action B} (f:A-fs->B) : A-> B := f.
 Coercion fun_of_fs_fun : FSFun >-> Funclass.
 
+Remark equivariant_fun_of_fs_fun A `(Action A) B `(Action B) : Equivariant (fun_of_fs_fun A B).
+Proof.
+  apply equivariant_alt₂.
+  intros π [f fs_f] x. simpl.
+  solve_act.
+Qed.
+Hint EResolve equivariant_fun_of_fs_fun : equivariant.
 
 Program Instance fsfun_nominal A `(Action A) B `(Action B) : Nominal (FSFun A B) := fs_nominal _ _.
 

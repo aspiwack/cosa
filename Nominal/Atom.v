@@ -143,12 +143,12 @@ Proof.
   + intros h.
     rewrite h. rewrite <- List.app_assoc.
     rewrite op_p_spec_r.
-    autorewrite with list.
+    rewrite_strat (topdown (hints list)).
     reflexivity.
   + intros h.
     rewrite <- h. rewrite <- List.app_assoc.
     rewrite op_p_spec_l.
-    autorewrite with list.
+    rewrite_strat (topdown (hints list)).
     reflexivity.
 Qed.
 
@@ -193,7 +193,7 @@ Proof.
   autounfold.
   intros π₁ π₂ h₁.
   rewrite eq_is_null in h₁.
-  replace (op_p π₂) with (op_p π₂++[]); [|now autorewrite with list].
+  replace (op_p π₂) with (op_p π₂++[]); [|now (rewrite_strat (topdown (hints list)))].
   rewrite op_float_ll.
   rewrite <- op_p_comp.
   lazymatch goal with
@@ -436,7 +436,7 @@ Proof.
       rewrite <- List.app_assoc.
       change [τ] with (op_p [τ]) at 2.
       rewrite op_p_spec_r.
-      autorewrite with list.
+      rewrite_strat (topdown (hints list)).
       reflexivity.
     * rewrite List.Forall_forall in h_canonical_π'' |- *.
       intros τ'.

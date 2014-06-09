@@ -9,6 +9,7 @@ Import Values.
 Import List.ListNotations.
 Require Import Coq.Lists.SetoidPermutation.
 Require Import Cosa.Nominal.Set.
+Require Import Cosa.Nominal.CompcertInstances.
 
 (** The bare graphs consitute the memory model of the shape domain.
     They are to be paired with a numerical domain to make a complete
@@ -55,6 +56,7 @@ Notation valuation := (node -fs-> val).
     fragment.  The valuation maps nodes to their addresses or their
     numerical value. *)
 Definition conc := (valuation * ConcreteFragment.fragment)%type.
+Hint Unfold conc : equivariant.
 
 Instance fragment_nominal : Nominal ConcreteFragment.fragment :=
   Nominal.Set.discrete_nominal

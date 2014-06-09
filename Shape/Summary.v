@@ -11,10 +11,50 @@ Require Import Cosa.Interaction.Simulation.
 Require Import Cosa.Interaction.InteractionLib.
 Require Import Cosa.Abstract.Valuation.
 Import Coq.Classes.EquivDec.
+Require Import Cosa.Nominal.Set.
 
 (** Definition of inductive summaries for graphs. *)
 
+Section Inductives.
 
+  (** [indname] is a type which stands for the allowable inductive
+      shapes in the graph.  The semantics of each name describes how
+      it can be manipulated. The recursive knot is tied later in this
+      file. *)
+
+  Context {indname:Type} (γ_name:indname -> node -> ℘ Graph.conc).
+  Context {nominal_indame:Nominal indname} {equivariant_γ_name:Equivariant γ_name}.
+
+  Definition rule := (Graph.t indname * expr Graph.node)%type.
+  Hint Unfold rule : equivariant.
+
+  Definition γ_rule (r:rule) : ℘ Graph.conc :=
+    fun c =>
+      let gr := Graph.γ γ_name (fst r) in
+      c ∈ gr /\
+      Lang.valid_pure_expr (fst c) (snd r) true
+  .
+
+  Lemma equivariant_γ_rule : Equivariant γ_rule.
+  Proof.
+    unfold γ_rule.
+    combinatorize.
+    narrow_equivariant; easy.
+  Qed.
+  Hint EResolve equivariant_γ_rule : equivariant.
+
+
+  (** The idea is that un unfolding [u α] is a finite product (i.e. a
+      list) of purely angelic processes where the commands are
+      requests for fresh nodes (using
+      [InteractionLib.with_new]). Later, when running the shape
+      domain, we will need unfoldings to be exactly of that form, but
+      it is not necessary for definitions. *)
+  Definition unfolding := node -> Interaction (℘ node) rule.
+
+
+
+(* arnaud: below: previous solution *)
 Section Inductives.
 
   (** [indname] is a type which stands for the allowable inductive
