@@ -133,7 +133,6 @@ VFILES:=Interaction/Interaction.v\
   Lib/MapReduce.v\
   Lib/Algebra.v\
   Lib/Tactics.v\
-  Lib/.#Tactics.v\
   Lib/Axioms.v\
   Lib/Relation.v\
   Lib/Predicate.v\
