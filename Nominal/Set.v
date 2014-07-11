@@ -233,7 +233,7 @@ Program Instance prod_action A B `(Action A) `(Action B): Action (A*B) := {|
 Next Obligation.
   autounfold.
   intros π₁ π₂ h xy ? <-.
-  rewrite <- !h.
+  rewrite h.
   reflexivity.
 Qed.
 Next Obligation.
@@ -528,7 +528,8 @@ Proof.
   unfold Equivariant,support,Tactics.id. simpl.
   solve_act.
 Qed.
-Hint EResolve equivariant_id : equivariant.
+(* Hint EResolve equivariant_id : equivariant. *)
+Hint Extern 0 (Equivariant Tactics.id) => eapply equivariant_id : equivariant.
 
 Lemma equivariant_comp A `(Action A) B `(Action B) C `(Action C) :
   Equivariant (@compc A B C).
@@ -538,21 +539,31 @@ Proof.
   extensionality x. unfold comp. simpl.
   solve_act.
 Qed.
-Hint EResolve equivariant_comp : equivariant.
+(* Hint EResolve equivariant_comp : equivariant. *)
+Hint Extern 0 (Equivariant compc) => eapply equivariant_comp : equivariant.
+
+Corollary equivariant_comp_app A `(Action A) B `(Action B) C `(Action C) :
+  forall f g, Equivariant f -> Equivariant g -> Equivariant (@compc A B C f g).
+Proof.
+  intros.
+  repeat eapply equivariant_app; [ apply equivariant_comp | eauto .. ].
+Qed.
 
 Lemma equivariant_k A `(Action A) B `(Action B) : Equivariant (@kc A B).
 Proof.
   unfold Equivariant,support,kc. simpl.
   solve_act.
 Qed.
-Hint EResolve equivariant_k : equivariant.
+(* Hint EResolve equivariant_k : equivariant. *)
+Hint Extern 0 (Equivariant kc) => eapply equivariant_k : equivariant.
 
 Lemma equivariant_s A `(Action A) B `(Action B) C `(Action C) : Equivariant (@sc A B C).
 Proof.
   unfold Equivariant,support,sc. simpl.
   solve_act.
 Qed.
-Hint EResolve equivariant_s : equivariant.
+(* Hint EResolve equivariant_s : equivariant. *)
+Hint Extern 0 (Equivariant sc) => eapply equivariant_s : equivariant.
 
 Lemma equivariant_swap A `(Action A) B `(Action B) C `(Action C) :
   Equivariant (@swapc A B C).
@@ -561,7 +572,9 @@ Proof.
   intros π f x y. unfold swapc. simpl.
   solve_act.
 Qed.
-Hint EResolve equivariant_swap : equivariant.
+(* Hint EResolve equivariant_swap : equivariant. *)
+Hint Extern 0 (Equivariant swapc) => eapply equivariant_swap : equivariant.
+
 
 (* prepare_narrow_equivariant is set later to avoid bad interaction
    with the typeclass inference mechanism. Maybe a better way would be
@@ -569,9 +582,16 @@ Hint EResolve equivariant_swap : equivariant.
    that. *)
 Ltac prepare_narrow_equivariant := idtac.
 (* spiwack: is there a way to just make a call to eauto? *)
+Ltac progress_narrow_equivariant :=
+  lazymatch goal with
+  | |- Equivariant (compc _ _) => eapply equivariant_comp_app
+          (* as a small optimisation, because [compc] is often used *)
+  | _ => eapply equivariant_app
+  end
+.
 Ltac narrow_equivariant :=
   repeat (solve[eauto with equivariant|
-                (progress prepare_narrow_equivariant);eauto with equivariant]          ||eapply equivariant_app)
+                (progress prepare_narrow_equivariant);eauto with equivariant]          ||progress_narrow_equivariant)
 .
 
 Lemma equivariant_pair A `(Action A) B `(Action B) : Equivariant (@Datatypes.pair A B).
@@ -579,21 +599,24 @@ Proof.
   apply equivariant_alt₂. simpl.
   easy.
 Qed.
-Hint EResolve equivariant_pair : equivariant.
+(* Hint EResolve equivariant_pair : equivariant. *)
+Hint Extern 0 (Equivariant Datatypes.pair) => eapply equivariant_pair : equivariant.
 
 Lemma equivariant_fst A `(Action A) B `(Action B) : Equivariant (@fst A B).
 Proof.
   apply equivariant_alt₁. simpl.
   easy.
 Qed.
-Hint EResolve equivariant_fst : equivariant.
+(* Hint EResolve equivariant_fst : equivariant. *)
+Hint Extern 0 (Equivariant fst) => eapply equivariant_fst : equivariant.
 
 Lemma equivariant_snd A `(Action A) B `(Action B) : Equivariant (@snd A B).
 Proof.
   apply equivariant_alt₁. simpl.
   easy.
 Qed.
-Hint EResolve equivariant_snd : equivariant.
+(* Hint EResolve equivariant_snd : equivariant. *)
+Hint Extern 0 (Equivariant snd) => eapply equivariant_snd : equivariant.
 
 (* spiwack: there is a duplicate of [comp] for some reason. I should
    probably clean this up.  *)
@@ -605,7 +628,8 @@ Proof.
   extensionality x. unfold comp. simpl.
   solve_act.
 Qed.
-Hint EResolve equivariant_comp' : equivariant.
+(* Hint EResolve equivariant_comp' : equivariant. *)
+Hint Extern 0 (Equivariant comp) => eapply equivariant_comp' : equivariant.
 
 Lemma equivariant_map A `(Action A) B `(Action B) : Equivariant (@List.map A B).
 Proof.
@@ -619,8 +643,10 @@ Proof.
     simpl.
     solve_act.
 Qed.
-Hint EResolve equivariant_map : equivariant.
+(* Hint EResolve equivariant_map : equivariant. *)
+Hint Extern 0 (Equivariant (@List.map _ _)) => eapply equivariant_map : equivariant.
 
+(* arnaud: duplicate of [swapc] ? *)
 Definition swap_args {A B C:Type} (f:A->B->C) : B->A->C :=
   fun y x => f x y
 .
@@ -632,7 +658,8 @@ Proof.
   intros π f x y. unfold swap_args. simpl.
   solve_act.
 Qed.
-Hint EResolve swap_args_equivariant : equivariant.
+(* Hint EResolve swap_args_equivariant : equivariant. *)
+Hint Extern 0 (Equivariant swap_args) => eapply swap_args_equivariant : equivariant.
 
 (** Nominal sets *)
 
@@ -813,7 +840,8 @@ Proof.
   intros π [f fs_f] x. simpl.
   solve_act.
 Qed.
-Hint EResolve equivariant_fun_of_fs_fun : equivariant.
+(* Hint EResolve equivariant_fun_of_fs_fun : equivariant. *)
+Hint Extern 0 (Equivariant (fun_of_fs_fun _ _)) => eapply equivariant_fun_of_fs_fun : equivariant.
 
 Program Instance fsfun_nominal A `(Action A) B `(Action B) : Nominal (FSFun A B) := fs_nominal _ _.
 
@@ -832,7 +860,8 @@ Proof.
     rewrite hl.
     firstorder (eauto using act_injective;congruence).
 Qed.
-Hint EResolve In_equivariant.
+(* Hint EResolve In_equivariant. *)
+Hint Extern 0 (Equivariant (@List.In _)) => eapply In_equivariant : equivariant.
 
 Program Definition In_fs {A} `{Nominal A} (l:list A) : A-fs->Prop :=
   fun x => List.In x l

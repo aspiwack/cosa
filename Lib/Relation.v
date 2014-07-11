@@ -259,10 +259,11 @@ Qed.
 (** On pairing up associative and commutative relations. *)
 Section PairUp.
 
-  Context {A} (r₁:A->A->A->Prop).
+  Context {A B:Type}.
+  Context (r₁:A->A->A->Prop).
   Context{r₁_assoc:Associative eq (extension2 r₁)}{r₁_comm:Commutative eq (extension2 r₁)}.
   Context (e₁:A->Prop) {e₁_neutral:LeftNeutral eq (extension2 r₁) e₁}.
-  Context {B} (r₂:B->B->B->Prop).
+  Context (r₂:B->B->B->Prop).
   Context{r₂_assoc:Associative eq (extension2 r₂)}{r₂_comm:Commutative eq (extension2 r₂)}.
   Context (e₂:B->Prop) {e₂_neutral:LeftNeutral eq (extension2 r₂) e₂}.
 

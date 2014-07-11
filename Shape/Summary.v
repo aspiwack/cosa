@@ -41,7 +41,8 @@ Section Inductives.
     combinatorize.
     narrow_equivariant; easy.
   Qed.
-  Hint EResolve equivariant_γ_rule : equivariant.
+  (* Hint EResolve equivariant_γ_rule : equivariant. *)
+  Hint Extern 0 (Equivariant γ_rule) => eapply equivariant_γ_rule : equivariant.
 
 
   (** The idea is that un unfolding [u α] is a finite product (i.e. a

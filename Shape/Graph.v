@@ -35,6 +35,8 @@ Instance offs_nominal : Nominal offs := discrete_nominal.
 
 (** Representation of pointers in the abstract graph. *)
 Definition off_node := (node * offs)%type.
+Hint Unfold off_node : equivariant.
+
 
 (** Spiwack: I'm really not sure it matters wether valuation are
     finitely supported or not.  Concretely a finitely supported
@@ -81,38 +83,38 @@ Proof.
     solve_act.
   + eauto.
 Qed.
-Hint EResolve equivariant_teq : equivariant.
+(* Hint EResolve equivariant_teq : equivariant. *)
+Hint Extern 0 (Equivariant teq) => eapply equivariant_teq : equivariant.
 
 Lemma equivariant_fragment_star : Equivariant ConcreteFragment.star.
 Proof. easy. Qed.
-Hint EResolve equivariant_fragment_star : equivariant.
+(* Hint EResolve equivariant_fragment_star : equivariant. *)
+Hint Extern 0 (Equivariant ConcreteFragment.star) => eapply equivariant_fragment_star : equivariant.
 
 Lemma equivariant_relation_pair
-      A `(Action A) (r₁:A->A->A->Prop) B `(Action B) :
-      Equivariant r₁ -> Equivariant (Relation.pair r₁).
+      A `(Action A) B `(Action B) : Equivariant (@Relation.pair A B).
 Proof.
-  intros h.
-  apply equivariant_alt₁. intros π r₂.
+  apply equivariant_alt₂. intros π r₁ r₂.
   unfold Relation.pair.
   extensionality x; extensionality y; extensionality z. simpl.
-  eapply equivariant_alt₃ in h.
-  erewrite h. simpl.
   reflexivity.
 Qed.
-Hint EResolve equivariant_relation_pair : equivariant.
+(* Hint EResolve equivariant_relation_pair : equivariant. *)
+Hint Extern 0 (Equivariant Relation.pair) => eapply equivariant_relation_pair : equivariant.
 
 
+(* arnaud: v'erifier que ce helper est bien n'ecessaire/utile *)
 (** Help the proof search when there is [conc] instead of an explicit product. *)
-Corollary equivariant_relation_pair_conc (r₁:valuation->valuation->valuation->Prop) :
-          Equivariant r₁ ->
-          @Equivariant ((fragment->fragment->fragment->Prop)->conc->conc->conc->Prop) _
-                       (@Relation.pair valuation r₁ ConcreteFragment.fragment).
-Proof. refine (equivariant_relation_pair _ _ _ _ _). Qed.
-Hint EResolve equivariant_relation_pair_conc : equivariant.
+Corollary equivariant_relation_pair_conc :
+          @Equivariant (_->_->conc -> conc -> conc -> Prop) _ (@Relation.pair valuation ConcreteFragment.fragment).
+Proof. narrow_equivariant. Qed.
+(* Hint EResolve equivariant_relation_pair_conc : equivariant. *)
+Hint Extern 0 (@Equivariant (_->_->conc->conc->conc->Prop) _ Relation.pair) => eapply equivariant_relation_pair_conc : equivariant.
 
 Lemma equivariant_star : Equivariant star.
 Proof. unfold star. narrow_equivariant. Qed.
-Hint EResolve equivariant_star : equivariant.
+(* Hint EResolve equivariant_star : equivariant. *)
+Hint Extern 0 (Equivariant star) => eapply equivariant_star : equivariant.
 
 Lemma equivariant_extension2 A `(Action A) B `(Action B) C `(Action C) :
   Equivariant (@extension2 A B C).
@@ -122,17 +124,20 @@ Proof.
   apply prop_extensionality. simplify_act.
   firstorder (simplify_act; firstorder).
 Qed.
-Hint EResolve equivariant_extension2 : equivariant.
+(* Hint EResolve equivariant_extension2 : equivariant. *)
+Hint Extern 0 (Equivariant extension2) => eapply equivariant_extension2 : equivariant.
 
 Corollary equivariant_estar : Equivariant estar.
 Proof. narrow_equivariant. Qed.
-Hint EResolve equivariant_estar : equivariant.
+(* Hint EResolve equivariant_estar : equivariant. *)
+Hint Extern 0 (Equivariant estar) => eapply equivariant_estar : equivariant.
 
 Definition empty (s:conc) : Prop := ConcreteFragment.empty (snd s).
 
 Lemma empty_equivariant : Equivariant empty.
 Proof. now unfold Equivariant. Qed.
-Hint EResolve empty_equivariant : equivariant.
+(* Hint EResolve empty_equivariant : equivariant. *)
+Hint Extern 0 (Equivariant empty) => eapply empty_equivariant : equivariant.
 
 Lemma empty_spec : empty = Predicate.pair (fun _ => True) ConcreteFragment.empty.
 Proof.
@@ -193,11 +198,13 @@ Qed.
 
 Remark equivariant_destination : Equivariant destination.
 Proof. now apply equivariant_alt₁. Qed.
-Hint EResolve equivariant_destination : equivariant.
+(* Hint EResolve equivariant_destination : equivariant. *)
+Hint Extern 0 (Equivariant destination) => eapply equivariant_destination : equivariant.
 
 Remark equivariant_size : Equivariant size.
 Proof. now apply equivariant_alt₁. Qed.
-Hint EResolve equivariant_size : equivariant.
+(* Hint EResolve equivariant_size : equivariant. *)
+Hint Extern 0 (Equivariant size) => eapply equivariant_size : equivariant.
 
 Definition block := list (offs*pt_edge).
 
@@ -243,7 +250,8 @@ Section Graph.
 
   Context {summary:Type} (γ_summary : summary -> node -> ℘ conc).
   Context {summary_nominal:Nominal summary} (equivariant_γ_summary : Equivariant γ_summary).
-  Hint EResolve equivariant_γ_summary : equivariant.
+  (* Hint EResolve equivariant_γ_summary : equivariant. *)
+  Hint Extern 0 (Equivariant γ_summary) => eapply equivariant_γ_summary : equivariant.
   
 
   Inductive edge :=
@@ -467,7 +475,8 @@ Section Graph.
       * apply fs_extensionality. extensionality δ. simpl.
         now rewrite <- perm_comp', op_p_spec_l; simpl.
   Qed.
-  Hint EResolve γ_point_to_equivariant : equivariant.
+  (* Hint EResolve γ_point_to_equivariant : equivariant. *)
+  Hint Extern 0 (Equivariant γ_point_to) => eapply γ_point_to_equivariant : equivariant.
 
   (* arnaud: peut-etre deplacer tout ca *)
 
@@ -484,7 +493,8 @@ Section Graph.
       rewrite h. simpl.
       solve_act.
   Qed.
-  Hint EResolve list_reduce_equivariant : equivariant.
+  (* Hint EResolve list_reduce_equivariant : equivariant. *)
+  Hint Extern 0 (Equivariant list_reduce) => eapply list_reduce_equivariant : equivariant.
 
   Program Instance option_action A `(Action A) : Action (option A) := {|
     act π o := match o return _ with Some x => Some (π·x) | None => None end
@@ -539,7 +549,8 @@ Section Graph.
     AtomTree.simplify.
     apply map_action_alt_eq.
   Qed.
-  Hint EResolve equivariant_map_set : equivariant.
+  (* Hint EResolve equivariant_map_set : equivariant. *)
+  Hint Extern 0 (Equivariant AtomTree.set) => eapply equivariant_map_set : equivariant.
     
 
   Lemma ptree_map_reduce_equivariant A `(Action A) B `(Action B)
@@ -568,7 +579,8 @@ Section Graph.
         simplify_act.
         now rewrite hk₁.
   Qed.
-  Hint EResolve ptree_map_reduce_equivariant : equivariant.
+  (* Hint EResolve ptree_map_reduce_equivariant : equivariant. *)
+  Hint Extern 4 (Equivariant (ptree_map_reduce _ _ _)) => eapply ptree_map_reduce_equivariant : equivariant.
 
 (* arnaud: unused right now
   Lemma act_app_up A `(Action A) B `(Action B) π (f:A->B) (x:A) : (π·f) x = π·(f ((op_p π)·x)).
@@ -605,13 +617,15 @@ Section Graph.
 
   (* arnaud: /peut-etre deplacer tout ca *)
 
+
   Lemma γ_block_equivariant : Equivariant γ_block.
   Proof.
     unfold γ_block.
     combinatorize.
     narrow_equivariant.
   Qed.
-  Hint EResolve γ_block_equivariant : equivariant.
+  (* Hint EResolve γ_block_equivariant : equivariant. *)
+  Hint Extern 0 (Equivariant γ_block) => eapply γ_block_equivariant : equivariant.
 
   Lemma γ_edge_equivariant : Equivariant γ_edge.
   Proof.
@@ -623,7 +637,8 @@ Section Graph.
     + eapply equivariant_alt₂ in equivariant_γ_summary.
       eapply equivariant_γ_summary.
   Qed.
-  Hint EResolve γ_edge_equivariant : equivariant.
+  (* Hint EResolve γ_edge_equivariant : equivariant. *)
+  Hint Extern 0 (Equivariant γ_edge) => eapply γ_edge_equivariant : equivariant.
 
   Lemma γ_equivariant : Equivariant γ.
   Proof.
@@ -908,7 +923,8 @@ Section Graph.
 End Graph.
 
 Arguments t summary : clear implicits.
-Hint EResolve @γ_equivariant : equivariant.
+(* Hint EResolve @γ_equivariant : equivariant. *)
+Hint Extern 0 (Equivariant (γ _)) => eapply @γ_equivariant : equivariant.
 
 
 (** the concretisation are increasing with respect to the concretisation of summarized

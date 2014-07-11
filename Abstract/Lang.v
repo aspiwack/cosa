@@ -121,7 +121,8 @@ Proof.
     apply (h (op_p π)). simplify_act.
     exact r.
 Qed.
-Hint EResolve equivariant_eval_expr : equivariant.
+(* Hint EResolve equivariant_eval_expr : equivariant. *)
+Hint Extern 0 (Equivariant eval_expr) => eapply equivariant_eval_expr : equivariant.
 
 Lemma eval_expr_increasing var (env:var->Values.val) :
   forall (reads₁ reads₂:_->_->_->Prop),
@@ -145,7 +146,8 @@ Proof.
   narrow_equivariant.
   + easy.
 Qed.
-Hint EResolve equivariant_eval_pure_expr : equivariant.
+(* Hint EResolve equivariant_eval_pure_expr : equivariant. *)
+Hint Extern 0 (Equivariant eval_pure_expr) => eapply equivariant_eval_pure_expr : equivariant.
 
 
 (** Pure expressions as assertions. *)
@@ -161,7 +163,8 @@ Proof.
   narrow_equivariant.
   + easy.
 Qed.
-Hint EResolve equivariant_check_pure_expr : equivariant.
+(* Hint EResolve equivariant_check_pure_expr : equivariant. *)
+Hint Extern 0 (Equivariant check_pure_expr) => eapply equivariant_check_pure_expr : equivariant.
 
 Definition valid_pure_expr {var} env e b :=
   check_pure_expr (var:=var) env e b /\ ~(check_pure_expr env e (negb b))
@@ -173,9 +176,9 @@ Proof.
   unfold valid_pure_expr.
   combinatorize.
   Time narrow_equivariant; easy.
-  (* 0. secs (0.397935u,0.004047s) in first version *)
 Qed.
-Hint EResolve equivariant_valid_pure_expr : equivariant.
+(* Hint EResolve equivariant_valid_pure_expr : equivariant. *)
+Hint Extern 0 (Equivariant valid_pure_expr) => eapply equivariant_valid_pure_expr : equivariant.
 
 (** Substitution. *)
 Fixpoint subs {A B} (φ:A->B) (e:expr A) : expr B :=
